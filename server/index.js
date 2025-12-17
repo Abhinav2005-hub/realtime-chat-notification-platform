@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import http from "http";
 import authRoutes from "./routes/authRoutes.js";
 import { setupSocket } from "./socket.js";
+import messageRoutes from "./routes/messageRoutes.js";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/messages",messageRoutes);
 
 app.get("/", (req,res) => {
     res.send("Backend is running");
