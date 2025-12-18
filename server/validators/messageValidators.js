@@ -1,5 +1,5 @@
-import joi from "joi";
+import Joi from "joi";
 
- export const getMessageSchema = joi.object({
-    conversationId: joistring().uuid().required()
- });
+export const getMessageSchema = Joi.object({
+  conversationId: Joi.string().uuid().required()
+});
