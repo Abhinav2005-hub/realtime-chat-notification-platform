@@ -13,12 +13,15 @@ model User {
   email     String   @unique
   password  String?
   createdAt DateTime @default(now())
+
+  messages Message[] @relation("UserMessages")
 }
 
 model Conversation {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
-  messages  Message[]
+
+  messages Message[]
 }
 
 model Message {
@@ -26,8 +29,9 @@ model Message {
   content        String
   senderId       String
   conversationId String
+  status         String   @default("sent") // sent | delivered | seen
   createdAt      DateTime @default(now())
 
-  sender       User         @relation(fields: [senderId], references: [id])
+  sender       User         @relation("UserMessages", fields: [senderId], references: [id])
   conversation Conversation @relation(fields: [conversationId], references: [id])
 }
