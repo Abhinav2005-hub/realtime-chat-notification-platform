@@ -7,9 +7,9 @@ const prisma = new PrismaClient();
 export const setupMessaging = (io, socket) => {
   socket.on(
     "send_message",
-    async ({ conversationId, content, receiverId }) => {
+    async ({ conversationId, content }) => {
       try {
-        //  Save message (sent)
+        // Save message (sent)
         const message = await prisma.message.create({
           data: {
             content,
@@ -29,24 +29,33 @@ export const setupMessaging = (io, socket) => {
           status: "delivered"
         });
 
-        // Update message status in DB
+        // Update delivered status
         await prisma.message.update({
           where: { id: message.id },
           data: { status: "delivered" }
         });
 
-        // Check if receiver is online (Redis)
-        const receiverOnline = await redis.exists(
-          `user:${receiverId}`
-        );
+        // Fetch all conversation members except sender
+        const members = await prisma.conversationMember.findMany({
+          where: {
+            conversationId,
+            userId: { not: socket.userId }
+          }
+        });
 
-        // 5Send push notification if receiver is offline
-        if (!receiverOnline) {
-          await sendNotification(
-            receiverId,
-            "New Message",
-            content
+        // Notify offline members
+        for (const member of members) {
+          const isOnline = await redis.exists(
+            `user:${member.userId}`
           );
+
+          if (!isOnline) {
+            await sendNotification(
+              member.userId,
+              "New Message",
+              content
+            );
+          }
         }
       } catch (error) {
         console.error("send_message error:", error.message);

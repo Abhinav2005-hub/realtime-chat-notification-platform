@@ -1,7 +1,19 @@
+import { PrismaClient } from "@prisma/client";
 import redis from "../config/redis";
 
-export const setupPresence = (io, socket) => {
-    redis.set(`user:${socket.userId}`, socket.id);
+const prisma = new PrismaClient();
+
+export const setupPresence = async (io, socket) => {
+    await redis.set(`user:${socket.userId}`, socket.id);
+
+    const memberships = await prisma.conversationMember.findMany({
+        where: { userId: socket.userId }
+    });
+    
+    memberships.forEach((m) => {
+        socket.join(m.conversationId);
+    });
+    
     io.emit("user_online", socket.userId);
 
     socket.on("disconnect", async () => {
