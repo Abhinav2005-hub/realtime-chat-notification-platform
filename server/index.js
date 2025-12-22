@@ -7,6 +7,8 @@ import { setupSocket } from "./socket.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import conversationRoutes from "./routes/conversationRoutes.js";
+import { apiLimiter } from "./middleware/rateLimiter.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 dotenv.config();
 
@@ -15,12 +17,14 @@ const app = express();
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use("/api", apiLimiter);
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages",messageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/conversations", conversationRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/", (req,res) => {
     res.send("Backend is running");

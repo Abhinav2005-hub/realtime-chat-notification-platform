@@ -9,6 +9,19 @@ export const setupMessaging = (io, socket) => {
     "send_message",
     async ({ conversationId, content }) => {
       try {
+        // CHECK IF SENDER IS BLOCKED (ADMIN CONTROL)
+        const sender = await prisma.user.findUnique({
+          where: { id: socket.userId }
+        });
+
+        if (sender?.isBlocked) {
+          socket.emit(
+            "error_message",
+            "You are blocked by admin and cannot send messages"
+          );
+          return;
+        }
+
         // Save message (sent)
         const message = await prisma.message.create({
           data: {

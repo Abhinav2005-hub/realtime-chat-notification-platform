@@ -11,8 +11,12 @@ model User {
   id        String   @id @default(uuid())
   name      String?
   email     String   @unique
-  password  String?
+  password  String
+  fcmToken  String?
+  role      String   @default("USER") // USER | ADMIN
+  isBlocked Boolean  @default(false)
   createdAt DateTime @default(now())
+
 
   messages      Message[]            @relation("UserMessages")
   notifications Notification[]       @relation("UserNotifications")
@@ -43,9 +47,10 @@ model ConversationMember {
 model Message {
   id             String   @id @default(uuid())
   content        String
+  status         String   @default("sent")
   senderId       String
   conversationId String
-  status         String   @default("sent") // sent | delivered | seen
+  isDeleted      Boolean  @default(false)
   createdAt      DateTime @default(now())
 
   sender       User         @relation("UserMessages", fields: [senderId], references: [id])
