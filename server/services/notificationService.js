@@ -1,4 +1,4 @@
-import { firebaseAdmin } from "../config/firebase.js";
+import firebaseAdmin from "../config/firebase.js";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();

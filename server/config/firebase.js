@@ -1,12 +1,12 @@
 import admin from "firebase-admin";
-import fs from "fs";
 
-const serviceAccount = JSON.parse(
-    fs.readFileSync("./firebase-service-account.json", "utf8")
-);
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+serviceAccount.private_key =
+  serviceAccount.private_key.replace(/\\n/g, "\n");
 
 admin.initializeApp({
-    credentials: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount)
 });
 
-export const firebaseAdmin = admin;
+export default admin;
