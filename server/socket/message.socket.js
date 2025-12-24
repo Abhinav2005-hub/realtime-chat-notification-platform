@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 export const setupMessaging = (io, socket) => {
   socket.on(
     "send_message",
-    async ({ conversationId, content }) => {
+    async ({ conversationId, content, replyToId }) => {
       try {
         // CHECK IF SENDER IS BLOCKED (ADMIN CONTROL)
         const sender = await prisma.user.findUnique({
@@ -22,33 +22,35 @@ export const setupMessaging = (io, socket) => {
           return;
         }
 
-        // Save message (sent)
+        // SAVE MESSAGE (sent) — WITH REPLY SUPPORT
         const message = await prisma.message.create({
           data: {
             content,
             senderId: socket.userId,
             conversationId,
+            replyToId: replyToId || null,
             status: "sent"
           }
         });
 
-        // Emit message to conversation room (delivered)
+        // EMIT MESSAGE TO CONVERSATION ROOM (delivered)
         io.to(conversationId).emit("receive_message", {
           id: message.id,
           content: message.content,
           senderId: message.senderId,
           conversationId: message.conversationId,
+          replyToId: message.replyToId,
           createdAt: message.createdAt,
           status: "delivered"
         });
 
-        // Update delivered status
+        // UPDATE MESSAGE STATUS IN DB
         await prisma.message.update({
           where: { id: message.id },
           data: { status: "delivered" }
         });
 
-        // Fetch all conversation members except sender
+        // FETCH ALL CONVERSATION MEMBERS (EXCEPT SENDER)
         const members = await prisma.conversationMember.findMany({
           where: {
             conversationId,
@@ -56,7 +58,7 @@ export const setupMessaging = (io, socket) => {
           }
         });
 
-        // Notify offline members
+        // NOTIFY OFFLINE MEMBERS (GROUP + 1–1)
         for (const member of members) {
           const isOnline = await redis.exists(
             `user:${member.userId}`

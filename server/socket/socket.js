@@ -4,6 +4,7 @@ import { setupPresence } from "./presence.socket.js";
 import { setupTyping } from "./typing.socket.js";
 import { setupMessaging } from "./message.socket.js";
 import { setupSeen } from "./seen.socket.js";
+import { setupReactions } from "./reaction.socket.js";
 
 export const setupSocket = (httpServer) => {
   const io = new Server(httpServer, {
@@ -23,5 +24,6 @@ export const setupSocket = (httpServer) => {
     setupTyping(io, socket);
     setupMessaging(io, socket);
     setupSeen(io, socket);
+    setupReactions(io, socket);
   });
 };

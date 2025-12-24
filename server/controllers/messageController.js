@@ -7,7 +7,13 @@ export const getMessages = async (req, res) => {
 
   try {
     const messages = await prisma.message.findMany({
-      where: { conversationId },
+      where: { conversationId, isDeleted: false },
+      include: {
+        reactions: true,
+        replyTo: {
+          select: { id: true, content: true }
+        }
+      },
       orderBy: { createdAt: "asc" }
     });
 
