@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
 import authRoutes from "./routes/authRoutes.js";
-import { setupSocket } from "./socket.js";
+import { setupSocket } from "./socket/socket.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import conversationRoutes from "./routes/conversationRoutes.js";

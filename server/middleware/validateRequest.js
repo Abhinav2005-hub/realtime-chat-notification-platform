@@ -1,4 +1,4 @@
-const validateRequest = (schema, property = "body") => {
+export const validateRequest = (schema, property = "body") => {
     return (req, res, next) => {
         const { error } = schema.validate(req[property]);
 

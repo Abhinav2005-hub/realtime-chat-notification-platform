@@ -1,5 +1,5 @@
 import express from "express";
-import { getMessages } from "../controllers/messageController.js";
+import { getMessages, markMessagesSeen } from "../controllers/messageController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import { getMessageSchema, markSeenSchema } from "../validators/messageValidators.js";
