@@ -1,9 +1,5 @@
 import "./globals.css";
-
-export const metadata = {
-  title: "Realtime Chat App",
-  description: "Realtime chat application"
-};
+import { AuthProvider } from "@/context/AuthContext";
 
 export default function RootLayout({
   children
@@ -12,8 +8,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gray-100 text-gray-900">
-        {children}
+      <body>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
