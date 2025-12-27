@@ -1,14 +1,52 @@
-import ChatHeader from "@/components/chat/ChatHeader";
-import { useSeen } from "@/hooks/useSeen";
+"use client";
 
-const CONVERSATION_ID = "test-conversation-id";
+import { useState } from "react";
+import { useConversations } from "@/hooks/useConversations";
+import { useMessages } from "@/hooks/useMessages";
+import { useJoinConversation } from "@/hooks/useJoinConversation";
+import ConversationList from "./ConversationList"; 
 
 export default function ChatPage() {
-    useSeen(CONVERSATION_ID);
+  const { conversations } = useConversations();
+  const [activeConversation, setActiveConversation] =
+    useState<string | null>(null);
 
-    return (
-        <div>
-            <ChatHeader />
-        </div>
-    );
+  const { messages, sendMessage } = useMessages();
+
+  if (activeConversation) {
+    useJoinConversation(activeConversation);
+  }
+
+  return (
+    <div className="flex h-screen">
+      <ConversationList
+        conversations={conversations}
+        onSelect={setActiveConversation}
+      />
+
+      <div className="flex-1 p-4">
+        {messages.map((m) => (
+          <p key={m.id}>{m.content}</p>
+        ))}
+
+        {activeConversation && (
+          <>
+            <input
+              className="border p-2 w-full mt-2"
+              placeholder="Type message"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  sendMessage(
+                    activeConversation,
+                    e.currentTarget.value
+                  );
+                  e.currentTarget.value = "";
+                }
+              }}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
