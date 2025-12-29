@@ -1,50 +1,71 @@
 "use client";
 
 import { useState } from "react";
+import { useConversations } from "@/hooks/useConversations";
 import { useMessages } from "@/hooks/useMessages";
-import { useTyping } from "@/hooks/useTyping";
 import { useJoinConversation } from "@/hooks/useJoinConversation";
 import RequireAuth from "@/components/auth/RequireAuth";
-
-const CONVERSATION_ID = "test-conversation-id";
+import ConversationList from "@/components/chat/ConversationList";
 
 export default function ChatPage() {
-  useJoinConversation(CONVERSATION_ID);
+  const { conversations } = useConversations();
+  const [activeConversationId, setActiveConversationId] =
+    useState<string | null>(null);
+
+  // join room safely
+  useJoinConversation(activeConversationId);
 
   const { messages, sendMessage } = useMessages();
-  const { typingUser, sendTyping } = useTyping(CONVERSATION_ID);
-
   const [text, setText] = useState("");
+
+  const handleSend = () => {
+    if (!activeConversationId) return;
+    if(!text.trim()) return;
+
+    sendMessage(activeConversationId, text);
+    setText("");
+  };
 
   return (
     <RequireAuth>
-      <div className="p-4">
-        <div className="border h-80 overflow-y-auto mb-2">
+      <div className="flex h-screen">
+        {/* LEFT: Conversations */}
+        <ConversationList
+          conversations={conversations}
+          onSelect={setActiveConversationId}
+        />
+
+        {/* RIGHT: Chat */}
+        <div className="flex-1 p-4">
+          {!activeConversationId && (
+            <p>Select a conversation</p>
+          )}
+
           {messages.map((m) => (
             <p key={m.id}>{m.content}</p>
           ))}
+
+          {activeConversationId && (
+            <>
+              <input
+                className="border p-2 w-full mt-2"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Type a message"
+              />
+
+              <button
+                onClick={() => {
+                  sendMessage(activeConversationId, text);
+                  setText("");
+                }}
+                className="bg-blue-600 text-white px-4 py-2 mt-2"
+              >
+                Send
+              </button>
+            </>
+          )}
         </div>
-
-        {typingUser && <p>Someone is typing...</p>}
-
-        <input
-          className="border p-2 w-full"
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            sendTyping();
-          }}
-        />
-
-        <button
-          onClick={() => {
-            sendMessage(CONVERSATION_ID, text);
-            setText("");
-          }}
-          className="bg-blue-600 text-white px-4 py-2 mt-2"
-        >
-          Send
-        </button>
       </div>
     </RequireAuth>
   );

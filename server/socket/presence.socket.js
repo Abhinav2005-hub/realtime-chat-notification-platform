@@ -8,7 +8,7 @@ export const setupPresence = async (io, socket) => {
     // Mark user online
     await redis.set(`user:${socket.userId}`, socket.id);
 
-    // Join all conversation rooms
+    // Join existing conversations
     const memberships = await prisma.conversationMember.findMany({
       where: { userId: socket.userId }
     });
@@ -19,6 +19,16 @@ export const setupPresence = async (io, socket) => {
 
     io.emit("user_online", socket.userId);
 
+    // JOIN NEW CONVERSATION DYNAMICALLY
+    socket.on("join_conversation", (conversationId) => {
+      socket.join(conversationId);
+    });
+
+    // Optional but good practice
+    socket.on("leave_conversation", (conversationId) => {
+      socket.leave(conversationId);
+    });
+
     socket.on("disconnect", async () => {
       await redis.del(`user:${socket.userId}`);
       io.emit("user_offline", socket.userId);
@@ -27,3 +37,4 @@ export const setupPresence = async (io, socket) => {
     console.error("presence error:", error.message);
   }
 };
+
