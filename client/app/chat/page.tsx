@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useConversations } from "@/hooks/useConversations";
 import { useMessages } from "@/hooks/useMessages";
 import { useJoinConversation } from "@/hooks/useJoinConversation";
+import { useTyping } from "@/hooks/useTyping";
 import RequireAuth from "@/components/auth/RequireAuth";
 import ConversationList from "@/components/chat/ConversationList";
 
@@ -12,15 +13,20 @@ export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] =
     useState<string | null>(null);
 
-  // join room safely
+  // Join socket room safely
   useJoinConversation(activeConversationId);
 
-  const { messages, sendMessage } = useMessages();
+  // Messages scoped to active conversation
+  const { messages, sendMessage } = useMessages(activeConversationId);
+
+  // Typing indicator
+  const { typingUser, sendTyping } = useTyping(activeConversationId);
+
   const [text, setText] = useState("");
 
   const handleSend = () => {
     if (!activeConversationId) return;
-    if(!text.trim()) return;
+    if (!text.trim()) return;
 
     sendMessage(activeConversationId, text);
     setText("");
@@ -36,29 +42,42 @@ export default function ChatPage() {
         />
 
         {/* RIGHT: Chat */}
-        <div className="flex-1 p-4">
+        <div className="flex-1 p-4 flex flex-col">
           {!activeConversationId && (
-            <p>Select a conversation</p>
+            <p className="text-gray-500">Select a conversation</p>
           )}
 
-          {messages.map((m) => (
-            <p key={m.id}>{m.content}</p>
-          ))}
+          {/* Messages */}
+          <div className="flex-1 border p-3 overflow-y-auto mb-2">
+            {messages.map((m) => (
+              <p key={m.id} className="mb-1">
+                {m.content}
+              </p>
+            ))}
+          </div>
 
+          {/* Typing indicator */}
+          {typingUser && (
+            <p className="text-sm text-gray-400 mb-1">
+              Someone is typing...
+            </p>
+          )}
+
+          {/* Input */}
           {activeConversationId && (
             <>
               <input
-                className="border p-2 w-full mt-2"
+                className="border p-2 w-full"
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  sendTyping();
+                }}
                 placeholder="Type a message"
               />
 
               <button
-                onClick={() => {
-                  sendMessage(activeConversationId, text);
-                  setText("");
-                }}
+                onClick={handleSend}
                 className="bg-blue-600 text-white px-4 py-2 mt-2"
               >
                 Send

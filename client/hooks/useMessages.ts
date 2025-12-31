@@ -5,40 +5,30 @@ export interface Message {
   id: string;
   content: string;
   senderId: string;
+  conversationId: string;
   createdAt: string;
-  status?: "sent" | "delivered" | "seen";
 }
 
-export const useMessages = () => {
+export const useMessages = (conversationId: string | null) => {
   const socket = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !conversationId) return;
 
-    // Receive new message
+    // reset messages when conversation changes
+    setMessages([]);
+
     socket.on("receive_message", (message: Message) => {
-      setMessages((prev) => [...prev, message]);
-    });
-
-    // Handle seen status update
-    socket.on(
-      "messages_seen",
-      ({ conversationId }: { conversationId: string }) => {
-        setMessages((prev) =>
-          prev.map((msg) => ({
-            ...msg,
-            status: "seen"
-          }))
-        );
+      if (message.conversationId === conversationId) {
+        setMessages((prev) => [...prev, message]);
       }
-    );
+    });
 
     return () => {
       socket.off("receive_message");
-      socket.off("messages_seen");
     };
-  }, [socket]);
+  }, [socket, conversationId]);
 
   const sendMessage = (conversationId: string, content: string) => {
     socket?.emit("send_message", { conversationId, content });
