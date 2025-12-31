@@ -77,4 +77,15 @@ export const setupMessaging = (io, socket) => {
       }
     }
   );
+
+  // Typing Indicator
+  socket.on("typing", ({ conversationId }) => {
+    try {
+      socket.to(conversationId).emit("user_typing", {
+        userId: socket.userId
+      });
+    } catch (error) {
+      console.error("typing error:", error.message);
+    }
+  });
 };
