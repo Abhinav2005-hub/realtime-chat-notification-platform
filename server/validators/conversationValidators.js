@@ -1,6 +1,21 @@
-import joi from "joi";
+import Joi from "joi";
 
-export const createGroupSchema = joi.object({
-    name: joi.string().min(3).required(),
-    memberIds: joi.array().items(joi.string().uuid()).min(2).required()
+/**
+ * Create 1-to-1 conversation
+ * body: { userId }
+ */
+export const createConversationSchema = Joi.object({
+  userId: Joi.string().uuid().required()
+});
+
+/**
+ * Create group conversation
+ * body: { name, members }
+ */
+export const createGroupSchema = Joi.object({
+  name: Joi.string().min(3).required(),
+  members: Joi.array()
+    .items(Joi.string().uuid())
+    .min(1)
+    .required()
 });
