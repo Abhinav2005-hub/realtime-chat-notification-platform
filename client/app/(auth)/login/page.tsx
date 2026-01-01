@@ -1,47 +1,61 @@
-"use client"
+"use client";
 
-import { useState } from  "react";
+import { useState } from "react";
 import { loginUser } from "@/lib/authApi";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { TOKEN_KEY } from "@/lib/constants";
 
 export default function LoginPage() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const { login } = useAuth();
-    const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { login } = useAuth();
+  const router = useRouter();
 
-    const handleLogin = async () => {
-        const data = await loginUser(email, password);
-        login(data.user, data.token);
-        router.push("/chat");
-    };
+  const handleLogin = async () => {
+    try {
+      const data = await loginUser(email, password);
 
-    return (
-        <div className="min-h-screen flex items-center justify-center">
-            <div className="bg-white p-6 rounded shadow w-96">
-                <h2 className="text-xl font-bold mb-4">Login</h2>
+      // persist token
+      localStorage.setItem(TOKEN_KEY, data.token);
 
-                <input 
-                  className="w-full border p-2 mb-3 "
-                  placeholder="Email"
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+      // update auth context
+      login(data.user, data.token);
 
-                <input
-                className="w-full border p-2 mb-3 " 
-                  type="password"
-                  placeholder="Password"
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+      // redirect to chat
+      router.push("/chat");
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Login failed");
+    }
+  };
 
-                <button 
-                   onClick={handleLogin}
-                   className="w-full bg-blue-600 text-white py-2"
-                >
-                    Login
-                </button>
-            </div>
-        </div>
-    )
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="bg-white p-6 rounded shadow w-96">
+        <h2 className="text-xl font-bold mb-4">Login</h2>
+
+        <input
+          className="w-full border p-2 mb-3"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <input
+          className="w-full border p-2 mb-3"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button
+          onClick={handleLogin}
+          className="w-full bg-blue-600 text-white py-2"
+        >
+          Login
+        </button>
+      </div>
+    </div>
+  );
 }
