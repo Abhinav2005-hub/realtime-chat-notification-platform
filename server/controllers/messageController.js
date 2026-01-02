@@ -29,12 +29,16 @@ export const markMessagesSeen = async (req, res) => {
   
   try {
     await prisma.message.updateMany ({
-      where: { conversationId, senderId: { not: "seen" } },
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        status: { not: "seen" }
+      },
       data: { status: "seen" }
     });
 
     res.json({ message: "Messages marked as seen" });
   } catch (err) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: err.message });
   }
 };

@@ -8,15 +8,15 @@ const router = express.Router();
 
 router.get(
     "/:conversationId",
-    validateRequest(getMessageSchema, "params"),
     protect,
+    validateRequest(getMessageSchema, "params"),
     getMessages
 );
 
 router.post(
     "/seen",
-    validateRequest(markSeenSchema),
     protect,
+    validateRequest(markSeenSchema),
     markMessagesSeen
   );
   
