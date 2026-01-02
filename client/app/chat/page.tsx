@@ -28,7 +28,7 @@ export default function ChatPage() {
     if (!activeConversationId) return;
     if (!text.trim()) return;
 
-    sendMessage(activeConversationId, text);
+    sendMessage(text);
     setText("");
   };
 
@@ -77,7 +77,10 @@ export default function ChatPage() {
               />
 
               <button
-                onClick={handleSend}
+                onClick={() => {
+                  sendMessage(text);
+                  setText("");
+                }}
                 className="bg-blue-600 text-white px-4 py-2 mt-2"
               >
                 Send
