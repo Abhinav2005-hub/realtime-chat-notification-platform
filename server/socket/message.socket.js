@@ -78,6 +78,28 @@ export const setupMessaging = (io, socket) => {
     }
   );
 
+  // Mark Seen
+  socket.on("mark_seen",async ({ conversationId }) => {
+    try {
+      await prisma.message.updateMany({
+        where: {
+          conversationId,
+          senderId: { not: socket.userId },
+          status: { not: "seen" }
+        },
+        data: { status: "seen" }
+      });
+
+      // notify all user in conversation 
+      io.to(conversationId).emit("messages_seen", {
+        conversationId,
+        seenBy: socket.userId
+      });
+    } catch (err) {
+      console.error("mark_seen error:", err.message);
+    }
+  })
+
   // Typing Indicator
   socket.on("typing", ({ conversationId }) => {
     try {
