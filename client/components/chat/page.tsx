@@ -4,18 +4,16 @@ import { useState } from "react";
 import { useConversations } from "@/hooks/useConversations";
 import { useMessages } from "@/hooks/useMessages";
 import { useJoinConversation } from "@/hooks/useJoinConversation";
-import ConversationList from "./ConversationList"; 
+import ConversationList from "./ConversationList";
 
 export default function ChatPage() {
   const { conversations } = useConversations();
   const [activeConversation, setActiveConversation] =
     useState<string | null>(null);
 
-  const { messages, sendMessage } = useMessages();
-
-  if (activeConversation) {
-    useJoinConversation(activeConversation);
-  }
+  //pass conversationId to hooks
+  const { messages, sendMessage } = useMessages(activeConversation);
+  useJoinConversation(activeConversation);
 
   return (
     <div className="flex h-screen">
@@ -30,21 +28,16 @@ export default function ChatPage() {
         ))}
 
         {activeConversation && (
-          <>
-            <input
-              className="border p-2 w-full mt-2"
-              placeholder="Type message"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  sendMessage(
-                    activeConversation,
-                    e.currentTarget.value
-                  );
-                  e.currentTarget.value = "";
-                }
-              }}
-            />
-          </>
+          <input
+            className="border p-2 w-full mt-2"
+            placeholder="Type message"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                sendMessage(e.currentTarget.value); 
+                e.currentTarget.value = "";
+              }
+            }}
+          />
         )}
       </div>
     </div>

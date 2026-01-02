@@ -3,21 +3,30 @@ import { useSocket } from "@/context/SocketContext";
 import axios from "axios";
 import { API_URL, TOKEN_KEY } from "@/lib/constants";
 
+/*TYPES*/
+
 export interface Message {
   id: string;
   content: string;
   senderId: string;
   conversationId: string;
   createdAt: string;
+  status?: "sent" | "delivered" | "seen";
 }
+
+interface MessagesSeenPayload {
+  conversationId: string;
+}
+
+/*HOOK*/
 
 export const useMessages = (conversationId: string | null) => {
   const socket = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
 
-  // Fetch old messages when conversation changes
+  /* Fetch old messages when conversation changes */
   useEffect(() => {
-    if(!conversationId) {
+    if (!conversationId) {
       setMessages([]);
       return;
     }
@@ -44,27 +53,50 @@ export const useMessages = (conversationId: string | null) => {
     };
 
     fetchMessages();
-  }), [conversationId];
+  }, [conversationId]);
 
-  // Realtime messages
+  /* Realtime incoming messages */
   useEffect(() => {
     if (!socket) return;
 
-    const handler = (message: Message) => {
-      if(message.conversationId == conversationId) {
+    const messageHandler = (message: Message) => {
+      if (message.conversationId === conversationId) {
         setMessages((prev) => [...prev, message]);
       }
     };
 
-    socket.on("receive_message", handler);
+    socket.on("receive_message", messageHandler);
 
     return () => {
-      socket.off("receive_message", handler);
+      socket.off("receive_message", messageHandler);
     };
-  }, [socket, conversationId])
+  }, [socket, conversationId]);
 
+  /* Realtime seen updates */
+  useEffect(() => {
+    if (!socket) return;
+
+    const seenHandler = ({ conversationId: seenConversationId }: MessagesSeenPayload) => {
+      if (seenConversationId !== conversationId) return;
+
+      setMessages((prev) =>
+        prev.map((m) => ({
+          ...m,
+          status: "seen",
+        }))
+      );
+    };
+
+    socket.on("messages_seen", seenHandler);
+
+    return () => {
+      socket.off("messages_seen", seenHandler);
+    };
+  }, [socket, conversationId]);
+
+  /* Send message */
   const sendMessage = (content: string) => {
-    if (!conversationId) return;
+    if (!conversationId || !content.trim()) return;
 
     socket?.emit("send_message", {
       conversationId,

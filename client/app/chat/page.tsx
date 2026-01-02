@@ -5,6 +5,7 @@ import { useConversations } from "@/hooks/useConversations";
 import { useMessages } from "@/hooks/useMessages";
 import { useJoinConversation } from "@/hooks/useJoinConversation";
 import { useTyping } from "@/hooks/useTyping";
+import { useSeen } from "@/hooks/useSeen";
 import RequireAuth from "@/components/auth/RequireAuth";
 import ConversationList from "@/components/chat/ConversationList";
 
@@ -15,6 +16,7 @@ export default function ChatPage() {
 
   // Join socket room safely
   useJoinConversation(activeConversationId);
+  useSeen(activeConversationId);
 
   // Messages scoped to active conversation
   const { messages, sendMessage } = useMessages(activeConversationId);

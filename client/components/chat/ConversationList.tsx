@@ -30,4 +30,3 @@ export default function ConversationList({
     </div>
   );
 }
-console.log(111);
