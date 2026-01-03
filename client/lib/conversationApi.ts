@@ -1,12 +1,34 @@
-import { api } from "./api";
+"use client"
 
+import { api } from "./api";
+import { TOKEN_KEY } from "./constants";
+
+// fetch all conversatiomn of logged in user 
 export const fetchConversations = async () => {
-    return api("/api/conversations");
+    const token = localStorage.getItem(TOKEN_KEY);
+    if(!token) {
+        throw new Error("Not authenticated");
+    }
+
+    return api("/api/conversations", {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
 };
 
+// create 1-to-1 conversation
 export const createConversation = async (userId: string) => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if(!token) {
+        throw new Error("Not authenticated");
+    }
+
     return api("/api/conversations", {
         method: "POST",
-        body: JSON.stringify({ userId })
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId }),
     });
 };

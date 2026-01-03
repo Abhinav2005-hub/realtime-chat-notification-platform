@@ -11,17 +11,18 @@ import ConversationList from "@/components/chat/ConversationList";
 
 export default function ChatPage() {
   const { conversations } = useConversations();
+
   const [activeConversationId, setActiveConversationId] =
     useState<string | null>(null);
 
-  // Join socket room safely
+  /* Socket lifecycle */
   useJoinConversation(activeConversationId);
   useSeen(activeConversationId);
 
-  // Messages scoped to active conversation
+  /* Messages */
   const { messages, sendMessage } = useMessages(activeConversationId);
 
-  // Typing indicator
+  /* Typing */
   const { typingUser, sendTyping } = useTyping(activeConversationId);
 
   const [text, setText] = useState("");
@@ -37,7 +38,7 @@ export default function ChatPage() {
   return (
     <RequireAuth>
       <div className="flex h-screen">
-        {/* LEFT: Conversations */}
+        {/* LEFT: Conversation List */}
         <ConversationList
           conversations={conversations}
           onSelect={setActiveConversationId}
@@ -46,7 +47,9 @@ export default function ChatPage() {
         {/* RIGHT: Chat */}
         <div className="flex-1 p-4 flex flex-col">
           {!activeConversationId && (
-            <p className="text-gray-500">Select a conversation</p>
+            <p className="text-gray-500">
+              Select a conversation
+            </p>
           )}
 
           {/* Messages */}
@@ -75,14 +78,14 @@ export default function ChatPage() {
                   setText(e.target.value);
                   sendTyping();
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSend();
+                }}
                 placeholder="Type a message"
               />
 
               <button
-                onClick={() => {
-                  sendMessage(text);
-                  setText("");
-                }}
+                onClick={handleSend}
                 className="bg-blue-600 text-white px-4 py-2 mt-2"
               >
                 Send

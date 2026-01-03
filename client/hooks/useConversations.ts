@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { API_URL, TOKEN_KEY } from "@/lib/constants";
+import { TOKEN_KEY } from "@/lib/constants";
 
 export interface Conversation {
   id: string;
@@ -12,50 +12,36 @@ export interface Conversation {
 
 export const useConversations = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    let isMounted = true;
-
     const fetchConversations = async () => {
+      const token = localStorage.getItem(TOKEN_KEY);
+
+      // Not logged in → no conversations
+      if (!token) {
+        setConversations([]);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
-
-        // user not logged in
-        if (!token) {
-          if (isMounted) {
-            setConversations([]);
-            setLoading(false);
-          }
-          return;
-        }
-
         const data = await api("/api/conversations", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
-        if (isMounted) {
-          setConversations(Array.isArray(data) ? data : []);
-        }
+        setConversations(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Failed to fetch conversations:", error);
-        if (isMounted) {
-          setConversations([]);
-        }
+        setConversations([]);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
     fetchConversations();
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   return { conversations, loading };
