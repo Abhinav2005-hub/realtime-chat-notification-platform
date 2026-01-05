@@ -8,6 +8,8 @@ import { useTyping } from "@/hooks/useTyping";
 import { useSeen } from "@/hooks/useSeen";
 import RequireAuth from "@/components/auth/RequireAuth";
 import ConversationList from "@/components/chat/ConversationList";
+import UserList from "@/components/chat/UserList";
+import { createConversation } from "@/lib/conversationApi";
 
 export default function ChatPage() {
   const { conversations } = useConversations();
@@ -27,6 +29,12 @@ export default function ChatPage() {
 
   const [text, setText] = useState("");
 
+  //start 1-to-1 chat
+  const handleStartChat = async (userId: string) => {
+    const conversation = await createConversation(userId);
+    setActiveConversationId(conversation.id);
+  };
+
   const handleSend = () => {
     if (!activeConversationId) return;
     if (!text.trim()) return;
@@ -38,18 +46,20 @@ export default function ChatPage() {
   return (
     <RequireAuth>
       <div className="flex h-screen">
-        {/* LEFT: Conversation List */}
-        <ConversationList
-          conversations={conversations}
-          onSelect={setActiveConversationId}
-        />
+        {/* LEFT: Users + Conversations */}
+        <div className="w-64 border-r flex flex-col">
+          <UserList onSelect={handleStartChat} />
+
+          <ConversationList
+            conversations={conversations}
+            onSelect={setActiveConversationId}
+          />
+        </div>
 
         {/* RIGHT: Chat */}
         <div className="flex-1 p-4 flex flex-col">
           {!activeConversationId && (
-            <p className="text-gray-500">
-              Select a conversation
-            </p>
+            <p className="text-gray-500">Select a conversation</p>
           )}
 
           {/* Messages */}
