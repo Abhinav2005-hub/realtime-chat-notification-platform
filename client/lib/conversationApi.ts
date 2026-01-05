@@ -32,3 +32,10 @@ export const createConversation = async (userId: string) => {
         body: JSON.stringify({ userId }),
     });
 };
+
+export const createOneToOneConversation = async (otherUserId: string) => {
+    return api("/api/conversations/one-to-one", {
+        method: "POST",
+        body: JSON.stringify({ otherUserId })
+    });
+};

@@ -9,7 +9,7 @@ import { useSeen } from "@/hooks/useSeen";
 import RequireAuth from "@/components/auth/RequireAuth";
 import ConversationList from "@/components/chat/ConversationList";
 import UserList from "@/components/chat/UserList";
-import { createConversation } from "@/lib/conversationApi";
+import { createOneToOneConversation } from "@/lib/conversationApi"; 
 
 export default function ChatPage() {
   const { conversations } = useConversations();
@@ -31,9 +31,13 @@ export default function ChatPage() {
 
   //start 1-to-1 chat
   const handleStartChat = async (userId: string) => {
-    const conversation = await createConversation(userId);
+    try {
+      const conversation = await createOneToOneConversation(userId);
     setActiveConversationId(conversation.id);
-  };
+    } catch (err) {
+      console.error("Failed to start chat", err);
+    }
+  }
 
   const handleSend = () => {
     if (!activeConversationId) return;
