@@ -97,3 +97,49 @@ export const createGroupConversation = async (req, res) => {
     res.status(500).json({ message: "Failed to create group" });
   }
 };
+
+export const createOneToOneConversation = async (req, res) => {
+  const userId = req.userId;
+  const { otherUserId } = req.body;
+
+  if (userId == otherUserId) {
+    return res.status(400).json({ message: "Cannot chat with yourself" });
+  }
+
+  try {
+    // check if conversation already exist
+    const existingConversation = await prisma.conversation.findFirst({
+      where: {
+        isGroup: false,
+        members: {
+          every: {
+            userId: {
+              in: [userId, otherUserId]
+            }
+          }
+        }
+      }
+    });
+
+    if (existingConversation) {
+      return res.json(existingConversation);
+    }
+
+    // create new conversation 
+    const conversation = await prisma.conversation.create({
+      data: {
+        isGroup: false,
+        members: {
+          create: [
+            { userId },
+            { userId: otherUserId }
+          ]
+        }
+      }
+    });
+
+    res.status(201).json(conversation);
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+}
