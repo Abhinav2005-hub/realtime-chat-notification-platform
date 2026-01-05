@@ -8,15 +8,14 @@ const prisma = new PrismaClient();
 export const createConversation = async (req, res) => {
   try {
     const { userId } = req.body;
-    const myId = req.userId;
 
-    // check if conversation already exists
+    // check existing 1-to-1 conversation
     const existing = await prisma.conversation.findFirst({
       where: {
         isGroup: false,
         members: {
           every: {
-            userId: { in: [myId, userId] }
+            userId: { in: [req.userId, userId] }
           }
         }
       },
@@ -31,7 +30,7 @@ export const createConversation = async (req, res) => {
       data: {
         isGroup: false,
         members: {
-          create: [{ userId: myId }, { userId }]
+          create: [{ userId: req.userId }, { userId }]
         }
       },
       include: { members: true }
@@ -39,8 +38,7 @@ export const createConversation = async (req, res) => {
 
     res.status(201).json(conversation);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to create conversation" });
+    res.status(500).json({ message: error.message });
   }
 };
 
