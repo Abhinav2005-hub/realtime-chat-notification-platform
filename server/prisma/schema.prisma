@@ -16,7 +16,7 @@ model User {
   role      String   @default("USER") // USER | ADMIN
   isBlocked Boolean  @default(false)
   createdAt DateTime @default(now())
-
+  
   // Relations
   messages      Message[]            @relation("UserMessages")
   notifications Notification[]       @relation("UserNotifications")
@@ -28,6 +28,8 @@ model Conversation {
   id        String   @id @default(uuid())
   isGroup   Boolean  @default(false)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
 
   members  ConversationMember[]
   messages Message[]
