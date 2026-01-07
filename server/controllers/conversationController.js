@@ -2,13 +2,12 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-/**
- * CREATE 1-TO-1 CONVERSATION
- */
+ // CREATE 1-TO-1 CONVERSATION
 export const createOneToOneConversation = async (req, res) => {
   const userId = req.userId;
-  const { targetUserId } = req.body;
+  const { otherUserId: targetUserId } = req.body;
 
+  // validation
   if (!targetUserId) {
     return res.status(400).json({ message: "targetUserId is required" });
   }
@@ -18,23 +17,24 @@ export const createOneToOneConversation = async (req, res) => {
   }
 
   try {
-    // check existing conversation
+    // check if conversation already exists
     const existingConversation = await prisma.conversation.findFirst({
       where: {
         isGroup: false,
-        members: {
-          every: {
-            userId: {
-              in: [userId, targetUserId],
-            },
-          },
-        },
+        AND: [
+          { members: { some: { userId } } },
+          { members: { some: { userId: targetUserId } } }
+        ]
       },
       include: {
         members: {
-          include: { user: true },
+          include: { user: true }
         },
-      },
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1
+        }
+      }
     });
 
     if (existingConversation) {
@@ -48,36 +48,35 @@ export const createOneToOneConversation = async (req, res) => {
         members: {
           create: [
             { userId },
-            { userId: targetUserId },
-          ],
-        },
+            { userId: targetUserId }
+          ]
+        }
       },
       include: {
         members: {
-          include: { user: true },
-        },
-      },
+          include: { user: true }
+        }
+      }
     });
 
     return res.status(201).json(conversation);
-  } catch (err) {
-    console.error("createOneToOneConversation error:", err);
+  } catch (error) {
+    console.error("createOneToOneConversation error:", error);
     return res.status(500).json({ message: "Failed to create conversation" });
   }
 };
 
-//create group conversation 
+ // CREATE GROUP CONVERSATION
 export const createGroupConversation = async (req, res) => {
   const userId = req.userId;
   const { name, memberIds } = req.body;
 
-  if (!name || !memberIds || memberIds.length < 2) {
-    return res.status(200).json({
-      message: "Group name and atleast 2 members are required",
+  if (!name || !Array.isArray(memberIds) || memberIds.length < 2) {
+    return res.status(400).json({
+      message: "Group name and at least 2 members are required"
     });
   }
 
- 
   try {
     const conversation = await prisma.conversation.create({
       data: {
@@ -86,52 +85,50 @@ export const createGroupConversation = async (req, res) => {
         members: {
           create: [
             { userId }, // creator
-            ...memberIds.map((id) => ({ userId: id })),
-          ],
-        },
+            ...memberIds.map((id) => ({ userId: id }))
+          ]
+        }
       },
       include: {
         members: {
-          include: { user: true },
-        },
-      },
+          include: { user: true }
+        }
+      }
     });
 
     return res.status(201).json(conversation);
-  } catch (err) {
-    console.error("createGroupConversation error:", err);
+  } catch (error) {
+    console.error("createGroupConversation error:", error);
     return res.status(500).json({ message: "Failed to create group" });
   }
 };
 
-/**
- * GET ALL CONVERSATIONS OF LOGGED-IN USER
- */
+ // GET ALL CONVERSATIONS
 export const getConversations = async (req, res) => {
   try {
     const conversations = await prisma.conversation.findMany({
       where: {
         members: {
-          some: { userId: req.userId },
-        },
+          some: { userId: req.userId }
+        }
       },
       include: {
         members: {
-          include: { user: true },
+          include: { user: true }
         },
         messages: {
           orderBy: { createdAt: "desc" },
-          take: 1,
-        },
+          take: 1
+        }
       },
       orderBy: {
-        updatedAt: "desc",
-      },
+        updatedAt: "desc"
+      }
     });
 
     res.json(conversations);
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error("getConversations error:", error);
     res.status(500).json({ message: "Failed to fetch conversations" });
   }
 };
