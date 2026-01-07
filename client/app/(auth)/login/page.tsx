@@ -15,20 +15,16 @@ export default function LoginPage() {
   const handleLogin = async () => {
     try {
       const data = await loginUser(email, password);
-
-      // persist token
-      localStorage.setItem(TOKEN_KEY, data.token);
-
-      // update auth context
+  
+      // update auth context 
       login(data.user, data.token);
-
-      // redirect to chat
+  
       router.push("/chat");
     } catch (err: any) {
       alert(err?.response?.data?.message || "Login failed");
     }
   };
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="bg-white p-6 rounded shadow w-96">
