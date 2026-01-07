@@ -1,6 +1,7 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { API_URL, TOKEN_KEY } from "@/lib/constants";
+import { api } from "@/lib/api";
 
 export interface User {
   id: string;
@@ -13,34 +14,29 @@ export const useUsers = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchUsers = async () => {
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        if (!token) {
-          setUsers([]);
-          return;
-        }
+        const data = await api("/api/users");
 
-        const res = await axios.get(`${API_URL}/users`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        
-        const usersArray = Array.isArray(res.data)
-          ? res.data
-          : res.data?.users;
+        if (!mounted) return;
 
-        setUsers(Array.isArray(usersArray) ? usersArray : []);
+        // backend returns array directly
+        setUsers(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Failed to fetch users:", error);
-        setUsers([]);
+        if (mounted) setUsers([]);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     fetchUsers();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return { users, loading };
