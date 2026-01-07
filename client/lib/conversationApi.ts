@@ -18,18 +18,10 @@ export const fetchConversations = async () => {
 };
 
 // create 1-to-1 conversation
-export const createOneToOneConversation = async (otherUserId: string) => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-        throw new Error ("Not authenticated");
-    }
-
+export const createOneToOneConversation = async (targetUserId: string) => {
     return api("/api/conversations/one-to-one", {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ otherUserId })
+      method: "POST",
+      body: JSON.stringify({ targetUserId }),
     });
-};
+  };
+  

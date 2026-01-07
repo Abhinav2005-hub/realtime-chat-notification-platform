@@ -33,11 +33,11 @@ export default function ChatPage() {
   const handleStartChat = async (userId: string) => {
     try {
       const conversation = await createOneToOneConversation(userId);
-    setActiveConversationId(conversation.id);
+      setActiveConversationId(conversation.id);
     } catch (err) {
       console.error("Failed to start chat", err);
     }
-  }
+  };  
 
   const handleSend = () => {
     if (!activeConversationId) return;
