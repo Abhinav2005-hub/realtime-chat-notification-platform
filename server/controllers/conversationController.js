@@ -7,6 +7,10 @@ const prisma = new PrismaClient();
   const userId = req.userId;
   const { targetUserId } = req.body;
 
+  if (!userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
   if (!targetUserId) {
     return res.status(400).json({ message: "targetUserId is required" });
   }

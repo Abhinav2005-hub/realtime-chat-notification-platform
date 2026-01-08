@@ -9,10 +9,11 @@ import { useSeen } from "@/hooks/useSeen";
 import RequireAuth from "@/components/auth/RequireAuth";
 import ConversationList from "@/components/chat/ConversationList";
 import UserList from "@/components/chat/UserList";
-import { createOneToOneConversation } from "@/lib/conversationApi"; 
+import { createOneToOneConversation } from "@/lib/conversationApi";
 
 export default function ChatPage() {
-  const { conversations } = useConversations();
+  // get refetch also
+  const { conversations, refetch } = useConversations();
 
   const [activeConversationId, setActiveConversationId] =
     useState<string | null>(null);
@@ -29,21 +30,26 @@ export default function ChatPage() {
 
   const [text, setText] = useState("");
 
-  //start 1-to-1 chat
+  // start 1-to-1 chat
   const handleStartChat = async (userId: string) => {
     try {
       const conversation = await createOneToOneConversation(userId);
+
+      // set active conversation
       setActiveConversationId(conversation.id);
+
+      // refresh left-side conversation list
+      refetch();
     } catch (err) {
       console.error("Failed to start chat", err);
     }
-  };  
+  };
 
   const handleSend = () => {
     if (!activeConversationId) return;
     if (!text.trim()) return;
 
-    sendMessage(text);
+    sendMessage(text.trim());
     setText("");
   };
 
@@ -93,7 +99,10 @@ export default function ChatPage() {
                   sendTyping();
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSend();
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSend();
+                  }
                 }}
                 placeholder="Type a message"
               />
