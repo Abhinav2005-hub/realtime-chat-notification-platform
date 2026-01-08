@@ -23,5 +23,5 @@ export const createOneToOneConversation = async (targetUserId: string) => {
       method: "POST",
       body: JSON.stringify({ targetUserId }),
     });
-  };
+  };  
   
