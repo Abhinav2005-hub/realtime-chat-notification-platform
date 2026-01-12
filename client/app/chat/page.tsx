@@ -35,11 +35,11 @@ export default function ChatPage() {
     try {
       const conversation = await createOneToOneConversation(userId);
 
+      // refresh sidebar
+      await refetch();
+
       // set active conversation
       setActiveConversationId(conversation.id);
-
-      // refresh left-side conversation list
-      refetch();
     } catch (err) {
       console.error("Failed to start chat", err);
     }

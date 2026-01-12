@@ -4,6 +4,7 @@ import { TOKEN_KEY } from "@/lib/constants";
 
 export interface Conversation {
   id: string;
+  members: any[];
   messages?: {
     id: string;
     content: string;
@@ -12,7 +13,7 @@ export interface Conversation {
 
 export const useConversations = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
 
   // shared fetch logic
   const fetchConversations = useCallback(async () => {
@@ -27,13 +28,7 @@ export const useConversations = () => {
 
     try {
       setLoading(true);
-
-      const data = await api("/api/conversations", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
+      const data = await api("/api/conversations") 
       setConversations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to fetch conversations:", error);
