@@ -5,82 +5,83 @@ import { sendNotification } from "../services/notificationService.js";
 const prisma = new PrismaClient();
 
 export const setupMessaging = (io, socket) => {
-  socket.on(
-    "send_message",
-    async ({ conversationId, content, replyToId }) => {
-      try {
-        // CHECK IF SENDER IS BLOCKED (ADMIN CONTROL)
-        const sender = await prisma.user.findUnique({
-          where: { id: socket.userId }
-        });
 
-        if (sender?.isBlocked) {
-          socket.emit(
-            "error_message",
-            "You are blocked by admin and cannot send messages"
-          );
-          return;
-        }
-
-        // SAVE MESSAGE (sent) — WITH REPLY SUPPORT
-        const message = await prisma.message.create({
-          data: {
-            content,
-            senderId: socket.userId,
-            conversationId,
-            replyToId: replyToId || null,
-            status: "sent"
-          }
-        });
-
-        // EMIT MESSAGE TO CONVERSATION ROOM (delivered)
-        io.to(conversationId).emit("receive_message", {
-          id: message.id,
-          content: message.content,
-          senderId: message.senderId,
-          conversationId: message.conversationId,
-          replyToId: message.replyToId,
-          createdAt: message.createdAt,
-          status: "delivered"
-        });
-
-        // UPDATE MESSAGE STATUS IN DB
-        await prisma.message.update({
-          where: { id: message.id },
-          data: { status: "delivered" }
-        });
-
-        // FETCH ALL CONVERSATION MEMBERS (EXCEPT SENDER)
-        const members = await prisma.conversationMember.findMany({
-          where: {
-            conversationId,
-            userId: { not: socket.userId }
-          }
-        });
-
-        // NOTIFY OFFLINE MEMBERS (GROUP + 1–1)
-        for (const member of members) {
-          const isOnline = await redis.exists(
-            `user:${member.userId}`
-          );
-
-          if (!isOnline) {
-            await sendNotification(
-              member.userId,
-              "New Message",
-              content
-            );
-          }
-        }
-      } catch (error) {
-        console.error("send_message error:", error.message);
-      }
-    }
-  );
-
-  // Mark Seen
-  socket.on("mark_seen",async ({ conversationId }) => {
+  /*SEND MESSAGE*/
+  socket.on("send_message", async ({ conversationId, content, replyToId }) => {
     try {
+      if (!conversationId || !content) return;
+
+      const sender = await prisma.user.findUnique({
+        where: { id: socket.userId }
+      });
+
+      if (!sender || sender.isBlocked) {
+        socket.emit("error_message", "You are blocked or invalid user");
+        return;
+      }
+
+      // Save message
+      const message = await prisma.message.create({
+        data: {
+          content,
+          senderId: socket.userId,
+          conversationId,
+          replyToId: replyToId || null,
+          status: "sent"
+        },
+        include: {
+          sender: { select: { id: true, name: true, email: true } },
+          replyTo: true
+        }
+      });
+
+      // Emit to room (frontend listens to this!)
+      io.to(conversationId).emit("receive_message", {
+        id: message.id,
+        content: message.content,
+        sender: message.sender,
+        senderId: message.senderId,
+        conversationId: message.conversationId,
+        replyTo: message.replyTo,
+        createdAt: message.createdAt,
+        status: "delivered"
+      });
+
+      // Mark delivered
+      await prisma.message.update({
+        where: { id: message.id },
+        data: { status: "delivered" }
+      });
+
+      // Notify offline users
+      const members = await prisma.conversationMember.findMany({
+        where: {
+          conversationId,
+          userId: { not: socket.userId }
+        }
+      });
+
+      for (const member of members) {
+        const isOnline = await redis.exists(`user:${member.userId}`);
+        if (!isOnline) {
+          await sendNotification(
+            member.userId,
+            "New Message",
+            content
+          );
+        }
+      }
+
+    } catch (error) {
+      console.error("send_message error:", error);
+    }
+  });
+
+  /*MARK SEEN*/
+  socket.on("mark_seen", async ({ conversationId }) => {
+    try {
+      if (!conversationId) return;
+
       await prisma.message.updateMany({
         where: {
           conversationId,
@@ -90,24 +91,25 @@ export const setupMessaging = (io, socket) => {
         data: { status: "seen" }
       });
 
-      // notify all user in conversation 
       io.to(conversationId).emit("messages_seen", {
         conversationId,
         seenBy: socket.userId
       });
     } catch (err) {
-      console.error("mark_seen error:", err.message);
+      console.error("mark_seen error:", err);
     }
-  })
+  });
 
-  // Typing Indicator
+  /*TYPING*/
   socket.on("typing", ({ conversationId }) => {
     try {
+      if (!conversationId) return;
+
       socket.to(conversationId).emit("user_typing", {
         userId: socket.userId
       });
     } catch (error) {
-      console.error("typing error:", error.message);
+      console.error("typing error:", error);
     }
   });
 };

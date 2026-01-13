@@ -3,8 +3,7 @@ import { useSocket } from "@/context/SocketContext";
 import axios from "axios";
 import { API_URL, TOKEN_KEY } from "@/lib/constants";
 
-/*TYPES*/
-
+/* TYPES */
 export interface Message {
   id: string;
   content: string;
@@ -18,13 +17,12 @@ interface MessagesSeenPayload {
   conversationId: string;
 }
 
-/*HOOK*/
-
+/* HOOK */
 export const useMessages = (conversationId: string | null) => {
   const socket = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
 
-  /* Fetch old messages when conversation changes */
+  /* Load old messages */
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
@@ -45,7 +43,7 @@ export const useMessages = (conversationId: string | null) => {
           }
         );
 
-        setMessages(res.data);
+        setMessages(res.data || []);
       } catch (err) {
         console.error("Failed to load messages", err);
         setMessages([]);
@@ -57,7 +55,7 @@ export const useMessages = (conversationId: string | null) => {
 
   /* Realtime incoming messages */
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !conversationId) return;
 
     const messageHandler = (message: Message) => {
       if (message.conversationId === conversationId) {
@@ -72,18 +70,15 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [socket, conversationId]);
 
-  /* Realtime seen updates */
+  /* Seen updates */
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !conversationId) return;
 
-    const seenHandler = ({ conversationId: seenConversationId }: MessagesSeenPayload) => {
-      if (seenConversationId !== conversationId) return;
+    const seenHandler = ({ conversationId: seenId }: MessagesSeenPayload) => {
+      if (seenId !== conversationId) return;
 
       setMessages((prev) =>
-        prev.map((m) => ({
-          ...m,
-          status: "seen",
-        }))
+        prev.map((m) => ({ ...m, status: "seen" }))
       );
     };
 
@@ -96,11 +91,12 @@ export const useMessages = (conversationId: string | null) => {
 
   /* Send message */
   const sendMessage = (content: string) => {
-    if (!conversationId || !content.trim()) return;
+    if (!socket || !conversationId || !content.trim()) return;
 
-    socket?.emit("send_message", {
+    socket.emit("send_message", {
       conversationId,
       content,
+      replyToId: null,
     });
   };
 
