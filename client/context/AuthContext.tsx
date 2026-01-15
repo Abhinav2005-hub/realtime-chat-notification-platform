@@ -1,56 +1,53 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
-import { User } from "@/types/auth";
+import { createContext, useContext, useEffect, useState } from "react";
 import { TOKEN_KEY } from "@/lib/constants";
 import { api } from "@/lib/api";
+import { User } from "@/types/auth";
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   loading: boolean;
+  isAuthReady: boolean;
   login: (user: User, token: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
-  // 🔥 Restore auth on refresh (REAL WAY)
   useEffect(() => {
     const restoreAuth = async () => {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const storedToken = localStorage.getItem(TOKEN_KEY);
 
-      if (!token) {
+      if (!storedToken) {
         setLoading(false);
+        setIsAuthReady(true);
         return;
       }
 
       try {
         const data = await api("/api/auth/me", {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${storedToken}`,
           },
         });
 
         setUser(data.user);
-      } catch (err) {
-        // token invalid or expired
+        setToken(storedToken);
+      } catch {
         localStorage.removeItem(TOKEN_KEY);
         setUser(null);
+        setToken(null);
       } finally {
         setLoading(false);
+        setIsAuthReady(true);
       }
     };
 
@@ -60,16 +57,20 @@ export const AuthProvider = ({
   const login = (user: User, token: string) => {
     localStorage.setItem(TOKEN_KEY, token);
     setUser(user);
+    setToken(token);
+    setIsAuthReady(true);
   };
 
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     setUser(null);
+    setToken(null);
+    setIsAuthReady(true);
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout }}
+      value={{ user, token, loading, isAuthReady, login, logout }}
     >
       {children}
     </AuthContext.Provider>
@@ -78,10 +79,6 @@ export const AuthProvider = ({
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error(
-      "useAuth must be used inside AuthProvider"
-    );
-  }
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
 };
