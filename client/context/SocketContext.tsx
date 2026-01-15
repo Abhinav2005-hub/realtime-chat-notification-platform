@@ -8,28 +8,25 @@ import { useAuth } from "./AuthContext";
 const SocketContext = createContext<Socket | null>(null);
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-    const { user } = useAuth();
-    const [socket, setSocket] = useState<Socket | null>(null);
+  const { user, token, isAuthReady } = useAuth();
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-    useEffect(() => {
-        if (user) {
-            const token = localStorage.getItem("token");
-            if (!token) return;
+  useEffect(() => {
+    if (!isAuthReady || !user || !token) return;
 
-            const s = connectSocket(token);
-            setSocket(s);
+    const s = connectSocket(token);
+    setSocket(s);
 
-            return() => {
-                s.disconnect();
-            };
-        }
-    }, [user]);
+    return () => {
+      s.disconnect();
+    };
+  }, [isAuthReady, user, token]);
 
-    return (
-        <SocketContext.Provider value={socket}>
-            {children}
-        </SocketContext.Provider>
-    );
+  return (
+    <SocketContext.Provider value={socket}>
+      {children}
+    </SocketContext.Provider>
+  );
 };
 
 export const useSocket = () => useContext(SocketContext);
