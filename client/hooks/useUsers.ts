@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import axios from "axios";
+import { API_URL } from "@/lib/constants";
+import { useAuth } from "@/context/AuthContext";
 
 export interface User {
   id: string;
@@ -10,34 +12,33 @@ export interface User {
 }
 
 export const useUsers = () => {
+  const { user, token, isAuthReady } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
+    if (!isAuthReady || !user || !token) return;
 
     const fetchUsers = async () => {
       try {
-        const data = await api("/api/users");
+        setLoading(true);
 
-        if (!mounted) return;
+        const res = await axios.get(`${API_URL}/users`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-        // backend returns array directly
-        setUsers(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error("Failed to fetch users:", error);
-        if (mounted) setUsers([]);
+        setUsers(res.data ?? []);
+      } catch (err) {
+        console.error("Failed to fetch users:", err);
       } finally {
-        if (mounted) setLoading(false);
+        setLoading(false);
       }
     };
 
     fetchUsers();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  }, [isAuthReady, user, token]);
 
   return { users, loading };
 };
