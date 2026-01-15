@@ -1,9 +1,10 @@
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { SocketProvider } from "@/context/SocketContext";
+import AuthGate from "@/components/AuthGate";
 
 export default function RootLayout({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) {
@@ -11,7 +12,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          <SocketProvider>{children}</SocketProvider>
+          <SocketProvider>
+            <AuthGate>{children}</AuthGate>
+          </SocketProvider>
         </AuthProvider>
       </body>
     </html>

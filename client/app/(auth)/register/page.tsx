@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState } from "react";
 import { registerUser } from "@/lib/authApi";
@@ -18,36 +18,20 @@ export default function RegisterPage() {
     router.push("/chat");
   };
 
-    return (
-        <div className="min-h-screen flex items-center justify-center">
-            <div className="bg-white p-6 rounded shadow w-96">
-                <h2 className="text-xl font-bold mb-4">Register</h2>
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="bg-white p-6 rounded shadow w-96">
+        <h2 className="text-xl font-bold mb-4">Register</h2>
 
-                <input 
-                  className="w-full border p-2 mb-3"
-                  placeholder="Name"
-                  onChange={(e) => setName(e.target.value)}
-                />
+        <input className="w-full border p-2 mb-3" placeholder="Name" onChange={e => setName(e.target.value)} />
+        <input className="w-full border p-2 mb-3" placeholder="Email" onChange={e => setEmail(e.target.value)} />
+        <input className="w-full border p-2 mb-3" placeholder="Password" type="password" onChange={e => setPassword(e.target.value)} />
 
-                <input 
-                  className="w-full border p-2 mb-3"
-                  placeholder="Email"
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-
-                <input 
-                  className="w-full border p-2 mb-3"
-                  placeholder="Password"
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-
-                <button
-                   onClick={handleRegister}
-                   className="w-full bg-blue-600 text-white py-2"
-                >
-                    Register
-                </button>
-            </div>
-        </div>
-    );
+        <button onClick={handleRegister} className="w-full bg-blue-600 text-white py-2">
+          Register
+        </button>
+      </div>
+    </div>
+  );
 }
+

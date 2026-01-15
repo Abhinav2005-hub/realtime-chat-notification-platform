@@ -5,6 +5,7 @@ import { loginUser } from "@/lib/authApi";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { TOKEN_KEY } from "@/lib/constants";
+import { connectSocket } from "@/lib/socket";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,16 +14,18 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    try {
-      const data = await loginUser(email, password);
+    const data = await loginUser(email, password);
+
+    // Save Token
+    localStorage.setItem(TOKEN_KEY, data.token);
   
-      // update auth context 
-      login(data.user, data.token);
+    // CONNECT SOCKET WITH TOKEN
+    connectSocket(data.token);
   
-      router.push("/chat");
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Login failed");
-    }
+    // update auth context
+    login(data.user, data.token);
+  
+    router.push("/chat");
   };
   
   return (
