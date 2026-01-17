@@ -1,7 +1,8 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { useSocket } from "@/context/SocketContext";
-import axios from "axios";
-import { API_URL, TOKEN_KEY } from "@/lib/constants";
+import { api } from "@/lib/api";
 
 /* TYPES */
 export interface Message {
@@ -13,16 +14,11 @@ export interface Message {
   status?: "sent" | "delivered" | "seen";
 }
 
-interface MessagesSeenPayload {
-  conversationId: string;
-}
-
 /* HOOK */
 export const useMessages = (conversationId: string | null) => {
   const socket = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
 
-  /* Load old messages */
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
@@ -31,19 +27,8 @@ export const useMessages = (conversationId: string | null) => {
 
     const fetchMessages = async () => {
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        if (!token) return;
-
-        const res = await axios.get(
-          `${API_URL}/messages/${conversationId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        setMessages(res.data || []);
+        const data = await api(`/api/messages/${conversationId}`);
+        setMessages(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to load messages", err);
         setMessages([]);
@@ -53,52 +38,44 @@ export const useMessages = (conversationId: string | null) => {
     fetchMessages();
   }, [conversationId]);
 
-  /* Realtime incoming messages */
   useEffect(() => {
     if (!socket || !conversationId) return;
 
-    const messageHandler = (message: Message) => {
+    const handleReceiveMessage = (message: Message) => {
       if (message.conversationId === conversationId) {
         setMessages((prev) => [...prev, message]);
       }
     };
 
-    socket.on("receive_message", messageHandler);
+    socket.on("receive_message", handleReceiveMessage);
 
     return () => {
-      socket.off("receive_message", messageHandler);
+      socket.off("receive_message", handleReceiveMessage);
     };
   }, [socket, conversationId]);
 
-  /* Seen updates */
-  useEffect(() => {
-    if (!socket || !conversationId) return;
-
-    const seenHandler = ({ conversationId: seenId }: MessagesSeenPayload) => {
-      if (seenId !== conversationId) return;
-
-      setMessages((prev) =>
-        prev.map((m) => ({ ...m, status: "seen" }))
-      );
-    };
-
-    socket.on("messages_seen", seenHandler);
-
-    return () => {
-      socket.off("messages_seen", seenHandler);
-    };
-  }, [socket, conversationId]);
-
-  /* Send message */
   const sendMessage = (content: string) => {
     if (!socket || !conversationId || !content.trim()) return;
+
+    const tempMessage: Message = {
+      id: crypto.randomUUID(),
+      content,
+      senderId: "me",
+      conversationId,
+      createdAt: new Date().toISOString(),
+      status: "sent",
+    };
+
+    setMessages((prev) => [...prev, tempMessage]);
 
     socket.emit("send_message", {
       conversationId,
       content,
-      replyToId: null,
     });
   };
 
-  return { messages, sendMessage };
+  return {
+    messages,
+    sendMessage,
+  };
 };
