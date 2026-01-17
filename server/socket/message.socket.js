@@ -6,13 +6,27 @@ const prisma = new PrismaClient();
 
 export const setupMessaging = (io, socket) => {
 
-  /*SEND MESSAGE*/
+  /* JOIN CONVERSATION ROOM */
+  socket.on("conversation:join", ({ conversationId }) => {
+    if (!conversationId) return;
+    socket.join(conversationId);
+    console.log(`Socket ${socket.id} joined ${conversationId}`);
+  });
+
+  /* LEAVE CONVERSATION ROOM */
+  socket.on("conversation:leave", ({ conversationId }) => {
+    if (!conversationId) return;
+    socket.leave(conversationId);
+    console.log(`Socket ${socket.id} left ${conversationId}`);
+  });
+
+  /* SEND MESSAGE */
   socket.on("send_message", async ({ conversationId, content, replyToId }) => {
     try {
-      if (!conversationId || !content) return;
+      if (!conversationId || !content?.trim()) return;
 
       const sender = await prisma.user.findUnique({
-        where: { id: socket.userId }
+        where: { id: socket.userId },
       });
 
       if (!sender || sender.isBlocked) {
@@ -20,22 +34,22 @@ export const setupMessaging = (io, socket) => {
         return;
       }
 
-      // Save message
       const message = await prisma.message.create({
         data: {
           content,
           senderId: socket.userId,
           conversationId,
           replyToId: replyToId || null,
-          status: "sent"
+          status: "sent",
         },
         include: {
-          sender: { select: { id: true, name: true, email: true } },
-          replyTo: true
-        }
+          sender: {
+            select: { id: true, name: true, email: true },
+          },
+          replyTo: true,
+        },
       });
 
-      // Emit to room (frontend listens to this!)
       io.to(conversationId).emit("receive_message", {
         id: message.id,
         content: message.content,
@@ -44,21 +58,19 @@ export const setupMessaging = (io, socket) => {
         conversationId: message.conversationId,
         replyTo: message.replyTo,
         createdAt: message.createdAt,
-        status: "delivered"
+        status: "delivered",
       });
 
-      // Mark delivered
       await prisma.message.update({
         where: { id: message.id },
-        data: { status: "delivered" }
+        data: { status: "delivered" },
       });
 
-      // Notify offline users
       const members = await prisma.conversationMember.findMany({
         where: {
           conversationId,
-          userId: { not: socket.userId }
-        }
+          userId: { not: socket.userId },
+        },
       });
 
       for (const member of members) {
@@ -77,7 +89,7 @@ export const setupMessaging = (io, socket) => {
     }
   });
 
-  /*MARK SEEN*/
+  /* MARK SEEN */
   socket.on("mark_seen", async ({ conversationId }) => {
     try {
       if (!conversationId) return;
@@ -86,30 +98,25 @@ export const setupMessaging = (io, socket) => {
         where: {
           conversationId,
           senderId: { not: socket.userId },
-          status: { not: "seen" }
+          status: { not: "seen" },
         },
-        data: { status: "seen" }
+        data: { status: "seen" },
       });
 
       io.to(conversationId).emit("messages_seen", {
         conversationId,
-        seenBy: socket.userId
+        seenBy: socket.userId,
       });
     } catch (err) {
       console.error("mark_seen error:", err);
     }
   });
 
-  /*TYPING*/
+  /* TYPING */
   socket.on("typing", ({ conversationId }) => {
-    try {
-      if (!conversationId) return;
-
-      socket.to(conversationId).emit("user_typing", {
-        userId: socket.userId
-      });
-    } catch (error) {
-      console.error("typing error:", error);
-    }
+    if (!conversationId) return;
+    socket.to(conversationId).emit("user_typing", {
+      userId: socket.userId,
+    });
   });
 };
