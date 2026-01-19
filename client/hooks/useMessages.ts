@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSocket } from "@/context/SocketContext";
-import { api } from "@/lib/api";
+import axios from "axios";
+import { API_URL, TOKEN_KEY } from "@/lib/constants";
 
-/* TYPES */
 export interface Message {
   id: string;
   content: string;
@@ -14,11 +14,11 @@ export interface Message {
   status?: "sent" | "delivered" | "seen";
 }
 
-/* HOOK */
 export const useMessages = (conversationId: string | null) => {
   const socket = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
 
+  // Fetch messages from DB
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
@@ -26,9 +26,20 @@ export const useMessages = (conversationId: string | null) => {
     }
 
     const fetchMessages = async () => {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) return;
+
       try {
-        const data = await api(`/api/messages/${conversationId}`);
-        setMessages(Array.isArray(data) ? data : []);
+        const res = await axios.get(
+          `${API_URL}/api/messages/${conversationId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setMessages(res.data || []);
       } catch (err) {
         console.error("Failed to load messages", err);
         setMessages([]);
@@ -38,35 +49,26 @@ export const useMessages = (conversationId: string | null) => {
     fetchMessages();
   }, [conversationId]);
 
+  // Receive realtime messages
   useEffect(() => {
-    if (!socket || !conversationId) return;
+    if (!socket) return;
 
-    const handleReceiveMessage = (message: Message) => {
+    const handler = (message: Message) => {
       if (message.conversationId === conversationId) {
         setMessages((prev) => [...prev, message]);
       }
     };
 
-    socket.on("receive_message", handleReceiveMessage);
+    socket.on("receive_message", handler);
 
     return () => {
-      socket.off("receive_message", handleReceiveMessage);
+      socket.off("receive_message", handler);
     };
   }, [socket, conversationId]);
 
+  // Send message
   const sendMessage = (content: string) => {
     if (!socket || !conversationId || !content.trim()) return;
-
-    const tempMessage: Message = {
-      id: crypto.randomUUID(),
-      content,
-      senderId: "me",
-      conversationId,
-      createdAt: new Date().toISOString(),
-      status: "sent",
-    };
-
-    setMessages((prev) => [...prev, tempMessage]);
 
     socket.emit("send_message", {
       conversationId,
@@ -74,8 +76,5 @@ export const useMessages = (conversationId: string | null) => {
     });
   };
 
-  return {
-    messages,
-    sendMessage,
-  };
+  return { messages, sendMessage };
 };

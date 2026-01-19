@@ -20,7 +20,7 @@ export default function ChatPage() {
   useJoinConversation(activeConversationId);
   useSeen(activeConversationId);
 
-  /* messages */
+  /* messages = SINGLE SOURCE OF TRUTH */
   const { messages, sendMessage } = useMessages(activeConversationId);
 
   /* typing */
@@ -74,15 +74,21 @@ export default function ChatPage() {
             <p className="text-gray-500">Select a conversation</p>
           )}
 
-          {/* MESSAGE LIST */}
-          <div className="flex-1 border p-3 overflow-y-auto mb-2">
-            {messages.map((m) => (
-              <p key={m.id} className="mb-1">
-                {m.content}
-              </p>
-            ))}
-            <div ref={bottomRef} />
-          </div>
+          {/* MESSAGE LIST (FIXED) */}
+          {activeConversationId && (
+            <div className="flex-1 border p-3 overflow-y-auto mb-2">
+              {messages.length === 0 ? (
+                <p className="text-gray-500">No messages yet</p>
+              ) : (
+                messages.map((m) => (
+                  <p key={m.id} className="mb-1">
+                    {m.content}
+                  </p>
+                ))
+              )}
+              <div ref={bottomRef} />
+            </div>
+          )}
 
           {/* TYPING INDICATOR */}
           {typingUser && (

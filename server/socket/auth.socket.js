@@ -4,21 +4,19 @@ export const socketAuth = (socket, next) => {
   try {
     const token = socket.handshake.auth?.token;
 
-    console.log("Socket auth token:", token);
-
     if (!token) {
-      return next(new Error("Authentication error: token missing"));
+      console.error("Socket auth error: token missing");
+      return next(new Error("Unauthorized"));
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     socket.userId = decoded.userId;
 
-    console.log("SOCKET DECODED JWT:", decoded);
-
+    console.log("Socket authenticated:", socket.userId);
     next();
-  } catch (error) {
-    console.error("Socket auth error:", error.message);
-    next(new Error("Authentication error"));
+  } catch (err) {
+    console.error("Socket auth error:", err.message);
+    next(new Error("Invalid token"));
   }
 };

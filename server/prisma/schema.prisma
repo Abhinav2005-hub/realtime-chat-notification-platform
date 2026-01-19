@@ -7,34 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// USER
 model User {
   id        String   @id @default(uuid())
   name      String?
   email     String   @unique
   password  String
   fcmToken  String?
-  role      String   @default("USER") // USER | ADMIN
+  role      String   @default("USER")
   isBlocked Boolean  @default(false)
   createdAt DateTime @default(now())
-  
-  // Relations
-  messages      Message[]            @relation("UserMessages")
-  notifications Notification[]       @relation("UserNotifications")
+
+  messages      Message[]
   memberships   ConversationMember[]
-  reactions     Reaction[]
+  notifications Notification[]
 }
 
+// CONVERSATION
 model Conversation {
   id        String   @id @default(uuid())
   isGroup   Boolean  @default(false)
+  name      String?
+  members   ConversationMember[]
+  messages  Message[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-
-  members  ConversationMember[]
-  messages Message[]
 }
 
+// CONVERSATION MEMBER
 model ConversationMember {
   id             String   @id @default(uuid())
   userId         String
@@ -47,39 +47,23 @@ model ConversationMember {
   @@unique([userId, conversationId])
 }
 
+// MESSAGE
 model Message {
   id             String   @id @default(uuid())
   content        String
-  status         String   @default("sent") // sent | delivered | seen
   senderId       String
   conversationId String
-
+  status         String   @default("sent") // sent | delivered | seen
   replyToId      String?
-  replyTo        Message?   @relation("ReplyRelation", fields: [replyToId], references: [id])
-  replies        Message[]  @relation("ReplyRelation")
-
   isDeleted      Boolean  @default(false)
-  createdAt      DateTime @default(now())
 
-  // Relations
-  sender         User         @relation("UserMessages", fields: [senderId], references: [id])
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
-  reactions      Reaction[]
-}
+  sender       User        @relation(fields: [senderId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
 
-model Reaction {
-  id        String   @id @default(uuid())
-  emoji     String
-  userId    String
-  messageId String
   createdAt DateTime @default(now())
-
-  user    User    @relation(fields: [userId], references: [id])
-  message Message @relation(fields: [messageId], references: [id])
-
-  @@unique([userId, messageId])
 }
 
+// NOTIFICATION
 model Notification {
   id        String   @id @default(uuid())
   userId    String
@@ -88,6 +72,5 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user User @relation("UserNotifications", fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
-
