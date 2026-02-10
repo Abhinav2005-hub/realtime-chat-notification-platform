@@ -3,30 +3,34 @@
 import { useUsers } from "@/hooks/useUsers";
 
 export default function UserList({
-    onSelect
+  onSelect,
 }: {
-    onSelect: (userId: string) => void;
+  onSelect: (userId: string) => void;
 }) {
-    const { users } = useUsers();
+  const { users, loading } = useUsers();
 
-    if (!Array.isArray(users)) {
-        return <p className="p-3">Loading users...</p>
-    }
+  return (
+    <div className="border-b">
+      <p className="p-2 font-semibold bg-gray-100">Users</p>
 
-    return (
-        <div className="w-64 border-r">
-            <p className="p-2 font-semibold">Users</p>
+      {loading && <p className="p-2 text-sm text-gray-500">Loading...</p>}
 
-            {users.map((u) => (
-                <div
-                  key={u.id}
-                  onClick={() => onSelect(u.id)}
-                  className="p-3 cursor-pointer hover:bg-gray-100"
-                >
-                  <p className="font-medium">{u.name}</p>
-                  <p className="text-sm text-gray-500">{u.email}</p>
-                </div>
-            ))}
-        </div>
-    );
+      {!loading && users.length === 0 && (
+        <p className="p-2 text-sm text-gray-500">No users found</p>
+      )}
+
+      <div className="max-h-48 overflow-y-auto">
+        {users.map((u) => (
+          <div
+            key={u.id}
+            onClick={() => onSelect(u.id)}
+            className="p-3 border-t cursor-pointer hover:bg-gray-100"
+          >
+            <p className="font-medium text-sm">{u.name || "No Name"}</p>
+            <p className="text-xs text-gray-500">{u.email}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
