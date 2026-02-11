@@ -4,6 +4,8 @@ import { useState } from "react";
 import { registerUser } from "@/lib/authApi";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { TOKEN_KEY } from "@/lib/constants";
+import { connectSocket } from "@/lib/socket";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -14,7 +16,16 @@ export default function RegisterPage() {
 
   const handleRegister = async () => {
     const data = await registerUser(name, email, password);
+
+    // Save Token
+    localStorage.setItem(TOKEN_KEY, data.token);
+
+    // Connect socket
+    connectSocket(data.token);
+
+    // update auth context
     login(data.user, data.token);
+
     router.push("/chat");
   };
 
@@ -23,15 +34,32 @@ export default function RegisterPage() {
       <div className="bg-white p-6 rounded shadow w-96">
         <h2 className="text-xl font-bold mb-4">Register</h2>
 
-        <input className="w-full border p-2 mb-3" placeholder="Name" onChange={e => setName(e.target.value)} />
-        <input className="w-full border p-2 mb-3" placeholder="Email" onChange={e => setEmail(e.target.value)} />
-        <input className="w-full border p-2 mb-3" placeholder="Password" type="password" onChange={e => setPassword(e.target.value)} />
+        <input
+          className="w-full border p-2 mb-3"
+          placeholder="Name"
+          onChange={(e) => setName(e.target.value)}
+        />
 
-        <button onClick={handleRegister} className="w-full bg-blue-600 text-white py-2">
+        <input
+          className="w-full border p-2 mb-3"
+          placeholder="Email"
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <input
+          className="w-full border p-2 mb-3"
+          placeholder="Password"
+          type="password"
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button
+          onClick={handleRegister}
+          className="w-full bg-blue-600 text-white py-2"
+        >
           Register
         </button>
       </div>
     </div>
   );
 }
-
