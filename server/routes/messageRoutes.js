@@ -1,11 +1,11 @@
 import express from "express";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 const router = express.Router();
 
-router.get("/:conversationId", authMiddleware, async (req, res) => {
+router.get("/:conversationId", protect, async (req, res) => {
   const { conversationId } = req.params;
 
   try {
