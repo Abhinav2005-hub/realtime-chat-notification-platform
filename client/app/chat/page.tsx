@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useConversations } from "@/hooks/useConversations";
 import { useMessages } from "@/hooks/useMessages";
 import { useJoinConversation } from "@/hooks/useJoinConversation";
@@ -10,15 +10,15 @@ import RequireAuth from "@/components/auth/RequireAuth";
 import ConversationList from "@/components/chat/ConversationList";
 import UserList from "@/components/chat/UserList";
 import { createOneToOneConversation } from "@/lib/conversationApi";
-import { useAuth } from "@/context/AuthContext";
-import { formatTime } from "@/lib/time";
 
 export default function ChatPage() {
   const { conversations, refetch } = useConversations();
-  const { user } = useAuth();
 
   const [activeConversationId, setActiveConversationId] =
     useState<string | null>(null);
+
+  /* Reply state */
+  const [replyToMessage, setReplyToMessage] = useState<any>(null);
 
   /* Socket lifecycle */
   useJoinConversation(activeConversationId);
@@ -32,20 +32,13 @@ export default function ChatPage() {
 
   const [text, setText] = useState("");
 
-  // scroll ref
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-
-  // auto scroll when messages update
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   // start 1-to-1 chat
   const handleStartChat = async (userId: string) => {
     try {
       const conversation = await createOneToOneConversation(userId);
       setActiveConversationId(conversation.id);
-      refetch();
+
+      refetch(); // refresh sidebar conversations
     } catch (err) {
       console.error("Failed to start chat", err);
     }
@@ -55,81 +48,75 @@ export default function ChatPage() {
     if (!activeConversationId) return;
     if (!text.trim()) return;
 
-    sendMessage(text);
+    sendMessage(text, replyToMessage?.id || null);
+
     setText("");
+    setReplyToMessage(null);
   };
 
   return (
     <RequireAuth>
       <div className="flex h-screen">
-        {/* LEFT */}
+        {/* LEFT: Users + Conversations */}
         <div className="w-64 border-r flex flex-col">
           <UserList onSelect={handleStartChat} />
 
           <ConversationList
             conversations={conversations}
             onSelect={setActiveConversationId}
-            activeConversationId={activeConversationId}
           />
         </div>
 
-        {/* RIGHT */}
+        {/* RIGHT: Chat */}
         <div className="flex-1 p-4 flex flex-col">
           {!activeConversationId && (
             <p className="text-gray-500">Select a conversation</p>
           )}
 
           {/* Messages */}
-          <div className="flex-1 border p-3 overflow-y-auto mb-2 flex flex-col gap-2">
+          <div className="flex-1 border p-3 overflow-y-auto mb-2">
             {messages.length === 0 ? (
               <p className="text-gray-500">No messages yet</p>
             ) : (
-              messages.map((m) => {
-                const isMine = m.senderId === user?.id;
-
-                return (
-                  <div
-                    key={m.id}
-                    className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`px-3 py-2 rounded-lg max-w-xs ${
-                        isMine
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-200 text-black"
-                      }`}
-                    >
-                      <p>{m.content}</p>
-
-                      {/* time + status */}
-                      <div className="text-[10px] mt-1 flex justify-end gap-2 opacity-70">
-                        <span>{formatTime(m.createdAt)}</span>
-
-                        {isMine && (
-                          <span>
-                            {m.status === "seen"
-                              ? "✔✔ Seen"
-                              : m.status === "delivered"
-                              ? "✔✔"
-                              : "✔"}
-                          </span>
-                        )}
-                      </div>
+              messages.map((m: any) => (
+                <div
+                  key={m.id}
+                  className="mb-2 p-2 border rounded cursor-pointer hover:bg-gray-100"
+                  onClick={() => setReplyToMessage(m)}
+                >
+                  {/* Reply preview inside message */}
+                  {m.replyTo && (
+                    <div className="text-xs text-gray-500 border-l-4 pl-2 mb-1">
+                      Replying to: {m.replyTo.content}
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  )}
 
-            {/* Auto scroll target */}
-            <div ref={bottomRef}></div>
+                  <p>{m.content}</p>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Typing indicator */}
           {typingUser && (
-            <p className="text-sm text-gray-400 mb-1">
-              Someone is typing...
-            </p>
+            <p className="text-sm text-gray-400 mb-1">Someone is typing...</p>
+          )}
+
+          {/* Reply preview above input */}
+          {replyToMessage && (
+            <div className="border p-2 mb-2 bg-gray-100 rounded">
+              <p className="text-sm text-gray-600">
+                Replying to:{" "}
+                <span className="font-semibold">{replyToMessage.content}</span>
+              </p>
+
+              <button
+                className="text-xs text-red-500 mt-1"
+                onClick={() => setReplyToMessage(null)}
+              >
+                Cancel Reply
+              </button>
+            </div>
           )}
 
           {/* Input */}

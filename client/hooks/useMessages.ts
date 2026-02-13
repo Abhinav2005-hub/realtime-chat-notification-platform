@@ -89,7 +89,7 @@ export const useMessages = (conversationId: string | null) => {
   }, [socket, conversationId]);
 
   // Send message
-  const sendMessage = (content: string) => {
+  const sendMessage = (content: string, replyToId?: string | null) => {
     if (!conversationId || !content.trim()) return;
 
     socket?.emit("send_message", {
