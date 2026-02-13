@@ -3,7 +3,13 @@ import { useSocket } from "@/context/SocketContext";
 import axios from "axios";
 import { API_URL, TOKEN_KEY } from "@/lib/constants";
 
-/*TYPES*/
+export interface Reaction {
+  id: string;
+  emoji: string;
+  userId: string;
+  messageId: string;
+}
+
 export interface Message {
   id: string;
   content: string;
@@ -11,6 +17,9 @@ export interface Message {
   conversationId: string;
   createdAt: string;
   status?: "sent" | "delivered" | "seen";
+
+  replyTo?: Message | null;
+  reactions?: Reaction[];
 }
 
 interface MessagesSeenPayload {
@@ -21,7 +30,7 @@ export const useMessages = (conversationId: string | null) => {
   const socket = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
 
-  // Fetch old messages
+  /* Fetch old messages */
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
@@ -49,7 +58,7 @@ export const useMessages = (conversationId: string | null) => {
     fetchMessages();
   }, [conversationId]);
 
-  // Realtime incoming messages
+  /* Incoming messages */
   useEffect(() => {
     if (!socket) return;
 
@@ -66,7 +75,7 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [socket, conversationId]);
 
-  // Seen updates
+  /* Seen updates */
   useEffect(() => {
     if (!socket) return;
 
@@ -88,15 +97,40 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [socket, conversationId]);
 
-  // Send message
+  /* Reaction updates */
+  useEffect(() => {
+    if (!socket) return;
+
+    const reactionHandler = ({ messageId, reactions }: any) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, reactions } : m
+        )
+      );
+    };
+
+    socket.on("reaction_updated", reactionHandler);
+
+    return () => {
+      socket.off("reaction_updated", reactionHandler);
+    };
+  }, [socket]);
+
+  /* Send message */
   const sendMessage = (content: string, replyToId?: string | null) => {
     if (!conversationId || !content.trim()) return;
 
     socket?.emit("send_message", {
       conversationId,
       content,
+      replyToId: replyToId || null,
     });
   };
 
-  return { messages, sendMessage };
+  /* Add reaction */
+  const addReaction = (messageId: string, emoji: string) => {
+    socket?.emit("add_reaction", { messageId, emoji });
+  };
+
+  return { messages, sendMessage, addReaction };
 };
