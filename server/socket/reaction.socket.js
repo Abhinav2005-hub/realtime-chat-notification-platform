@@ -1,34 +1,49 @@
 import { PrismaClient } from "@prisma/client";
+
 const prisma = new PrismaClient();
 
 export const setupReactions = (io, socket) => {
-    socket.on(
-        "react_message",
-        async ({ messageId, emoji, conversationId }) => {
-            try {
-                const reaction = await prisma.reaction.upsert({
-                    where: {
-                        userId_messageId: {
-                            userId: socket.userId,
-                            messageId
-                        }
-                    },
-                    update: { emoji },
-                    create: {
-                        emoji,
-                        userId: socket.userId,
-                        messageId
-                    }
-                });
+  socket.on("add_reaction", async ({ messageId, emoji }) => {
+    try {
+      if (!messageId || !emoji) return;
 
-                io.to(conversationId).emit("message_reacted", {
-                    messageId,
-                    userId: socket.userId,
-                    emoji
-                });
-            } catch (err) {
-                console.error("reaction error:", err.message);
-            }
-        }
-    );
-} 
+      // check if already exists
+      const existing = await prisma.reaction.findFirst({
+        where: {
+          messageId,
+          userId: socket.userId,
+          emoji,
+        },
+      });
+
+      if (existing) {
+        // remove reaction if clicked again
+        await prisma.reaction.delete({
+          where: { id: existing.id },
+        });
+      } else {
+        // add reaction
+        await prisma.reaction.create({
+          data: {
+            emoji,
+            userId: socket.userId,
+            messageId,
+          },
+        });
+      }
+
+      // fetch updated reactions
+      const reactions = await prisma.reaction.findMany({
+        where: { messageId },
+        include: { user: true },
+      });
+
+      io.emit("reaction_updated", {
+        messageId,
+        reactions,
+      });
+    } catch (err) {
+      console.error("add_reaction error:", err.message);
+    }
+  });
+};
