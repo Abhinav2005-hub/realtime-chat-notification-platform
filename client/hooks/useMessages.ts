@@ -17,6 +17,7 @@ export interface Message {
   conversationId: string;
   createdAt: string;
   status?: "sent" | "delivered" | "seen";
+  isDeleted?: boolean;
 
   replyTo?: Message | null;
   reactions?: Reaction[];
@@ -61,19 +62,33 @@ export const useMessages = (conversationId: string | null) => {
   /* Incoming messages */
   useEffect(() => {
     if (!socket) return;
-
+  
+    // receive message handler
     const messageHandler = (message: Message) => {
       if (message.conversationId === conversationId) {
         setMessages((prev) => [...prev, message]);
       }
     };
-
+  
+    // delete message handler
+    const deleteHandler = ({ messageId }: { messageId: string }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content: "Message deleted", isDeleted: true }
+            : m
+        )
+      );
+    };
+  
     socket.on("receive_message", messageHandler);
-
+    socket.on("message_deleted", deleteHandler);
+  
     return () => {
       socket.off("receive_message", messageHandler);
+      socket.off("message_deleted", deleteHandler);
     };
-  }, [socket, conversationId]);
+  }, [socket, conversationId]);  
 
   /* Seen updates */
   useEffect(() => {
@@ -127,10 +142,16 @@ export const useMessages = (conversationId: string | null) => {
     });
   };
 
+  /* Delete message */
+  const deleteMessage = (messageId: string) => {
+    socket?.emit("delete_message", { messageId });
+  };
+  
+
   /* Add reaction */
   const addReaction = (messageId: string, emoji: string) => {
     socket?.emit("add_reaction", { messageId, emoji });
   };
 
-  return { messages, sendMessage, addReaction };
+  return { messages, sendMessage, deleteMessage, addReaction };
 };
