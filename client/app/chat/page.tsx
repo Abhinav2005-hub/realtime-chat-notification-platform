@@ -25,7 +25,7 @@ export default function ChatPage() {
   useSeen(activeConversationId);
 
   /* Messages */
-  const { messages, sendMessage, addReaction } =
+  const { messages, sendMessage, deleteMessage, addReaction } =
     useMessages(activeConversationId);
 
   /* Typing */
@@ -94,6 +94,17 @@ export default function ChatPage() {
 
                   <p>{m.content}</p>
 
+                  {/* Delete Button */}
+                  <button
+                     onClick = {(e) => {
+                      e.stopPropagation();
+                      deleteMessage(m.id);
+                     }}
+                     className="text-red-500 text-sm ml-3"
+                  >
+                    Delete
+                  </button>
+                  
                   {/* Reaction Buttons */}
                   <div className="flex gap-2 mt-1 text-sm">
                     {["❤️", "😂", "👍", "🔥"].map((emoji) => (
