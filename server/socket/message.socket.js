@@ -76,14 +76,9 @@ export const setupMessaging = (io, socket) => {
       for (const member of members) {
         const isOnline = await redis.exists(`user:${member.userId}`);
         if (!isOnline) {
-          await sendNotification(
-            member.userId,
-            "New Message",
-            content
-          );
+          await sendNotification(member.userId, "New Message", content);
         }
       }
-
     } catch (error) {
       console.error("send_message error:", error);
     }
@@ -118,5 +113,33 @@ export const setupMessaging = (io, socket) => {
     socket.to(conversationId).emit("user_typing", {
       userId: socket.userId,
     });
+  });
+
+  /* DELETE MESSAGE */
+  socket.on("delete_message", async ({ messageId }) => {
+    try {
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+      });
+
+      if (!message) return;
+
+      if (message.senderId !== socket.userId) return;
+
+      const deleted = await prisma.message.update({
+        where: { id: messageId },
+        data: {
+          isDeleted: true,
+          content: "Message deleted",
+        },
+      });
+
+      io.to(message.conversationId).emit("message_deleted", {
+        messageId: deleted.id,
+        conversationId: deleted.conversationId,
+      });
+    } catch (err) {
+      console.error("delete_message error:", err.message);
+    }
   });
 };

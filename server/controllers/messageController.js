@@ -42,3 +42,33 @@ export const markMessagesSeen = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+export const deleteMessage = async (req, res) => {
+  const { messageId } = req.params;
+
+  try {
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.senderId !== req.userId) {
+      return res.status(403).json({ message: "Not allowed to delete this message" });
+    } 
+
+    const deletedMessage = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        isDeleted: true,
+        content: "Message deleted"
+      }
+    });
+
+    res.json(deletedMessage);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

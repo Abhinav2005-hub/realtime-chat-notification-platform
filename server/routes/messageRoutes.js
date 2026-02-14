@@ -1,24 +1,13 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
-import { PrismaClient } from "@prisma/client";
+import { getMessages, markMessagesSeen, deleteMessage } from "../controllers/messageController.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
-router.get("/:conversationId", protect, async (req, res) => {
-  const { conversationId } = req.params;
+router.get("/:conversationId", protect, getMessages);
 
-  try {
-    const messages = await prisma.message.findMany({
-      where: { conversationId },
-      orderBy: { createdAt: "asc" },
-    });
+router.post("/seen", protect, markMessagesSeen);
 
-    res.json(messages);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to fetch messages" });
-  }
-});
+router.delete("/:messageId", protect, deleteMessage);
 
 export default router;
