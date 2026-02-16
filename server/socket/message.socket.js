@@ -143,3 +143,37 @@ export const setupMessaging = (io, socket) => {
     }
   });
 };
+
+/* REACT MESSAGE */
+socket.on("react_message", async ({ messageId, emoji }) => {
+  try {
+    const message = await prisma.message.findUnique({
+      where: { id: messageId }
+    });
+
+    if (!message) return;
+
+    const reaction = await prisma.reaction.upsert({
+      where: {
+        userId_messageId: {
+          userId: socket.userId,
+          messageId
+        }
+      },
+      update: { emoji },
+      create: {
+        emoji,
+        userId: socket.userId,
+        messageId
+      }
+    });
+
+    io.to(message.conversationId).emit("message_reacted", {
+      messageId,
+      userId: socket.userId,
+      emoji
+    });
+  } catch (err) {
+    console.error("react_message error:", err.message);
+  }
+});
