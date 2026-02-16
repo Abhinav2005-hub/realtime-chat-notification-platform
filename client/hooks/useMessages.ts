@@ -7,7 +7,6 @@ export interface Reaction {
   id: string;
   emoji: string;
   userId: string;
-  messageId: string;
 }
 
 export interface Message {
@@ -59,18 +58,16 @@ export const useMessages = (conversationId: string | null) => {
     fetchMessages();
   }, [conversationId]);
 
-  /* Incoming messages */
+  /* Incoming messages + delete updates */
   useEffect(() => {
     if (!socket) return;
-  
-    // receive message handler
+
     const messageHandler = (message: Message) => {
       if (message.conversationId === conversationId) {
         setMessages((prev) => [...prev, message]);
       }
     };
-  
-    // delete message handler
+
     const deleteHandler = ({ messageId }: { messageId: string }) => {
       setMessages((prev) =>
         prev.map((m) =>
@@ -80,21 +77,23 @@ export const useMessages = (conversationId: string | null) => {
         )
       );
     };
-  
+
     socket.on("receive_message", messageHandler);
     socket.on("message_deleted", deleteHandler);
-  
+
     return () => {
       socket.off("receive_message", messageHandler);
       socket.off("message_deleted", deleteHandler);
     };
-  }, [socket, conversationId]);  
+  }, [socket, conversationId]);
 
   /* Seen updates */
   useEffect(() => {
     if (!socket) return;
 
-    const seenHandler = ({ conversationId: seenConversationId }: MessagesSeenPayload) => {
+    const seenHandler = ({
+      conversationId: seenConversationId,
+    }: MessagesSeenPayload) => {
       if (seenConversationId !== conversationId) return;
 
       setMessages((prev) =>
@@ -116,18 +115,45 @@ export const useMessages = (conversationId: string | null) => {
   useEffect(() => {
     if (!socket) return;
 
-    const reactionHandler = ({ messageId, reactions }: any) => {
+    const handler = ({
+      messageId,
+      userId,
+      emoji,
+    }: {
+      messageId: string;
+      userId: string;
+      emoji: string;
+    }) => {
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId ? { ...m, reactions } : m
-        )
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+
+          const existing = m.reactions?.find((r) => r.userId === userId);
+
+          if (existing) {
+            return {
+              ...m,
+              reactions: m.reactions?.map((r) =>
+                r.userId === userId ? { ...r, emoji } : r
+              ),
+            };
+          }
+
+          return {
+            ...m,
+            reactions: [
+              ...(m.reactions || []),
+              { id: crypto.randomUUID(), userId, emoji },
+            ],
+          };
+        })
       );
     };
 
-    socket.on("reaction_updated", reactionHandler);
+    socket.on("message_reacted", handler);
 
     return () => {
-      socket.off("reaction_updated", reactionHandler);
+      socket.off("message_reacted", handler);
     };
   }, [socket]);
 
@@ -146,12 +172,11 @@ export const useMessages = (conversationId: string | null) => {
   const deleteMessage = (messageId: string) => {
     socket?.emit("delete_message", { messageId });
   };
-  
 
-  /* Add reaction */
-  const addReaction = (messageId: string, emoji: string) => {
-    socket?.emit("add_reaction", { messageId, emoji });
+  /* React message */
+  const reactMessage = (messageId: string, emoji: string) => {
+    socket?.emit("react_message", { messageId, emoji });
   };
 
-  return { messages, sendMessage, deleteMessage, addReaction };
+  return { messages, sendMessage, deleteMessage, reactMessage };
 };

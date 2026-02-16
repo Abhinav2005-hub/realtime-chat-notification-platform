@@ -25,7 +25,7 @@ export default function ChatPage() {
   useSeen(activeConversationId);
 
   /* Messages */
-  const { messages, sendMessage, deleteMessage, addReaction } =
+  const { messages, sendMessage, deleteMessage, reactMessage } =
     useMessages(activeConversationId);
 
   /* Typing */
@@ -107,30 +107,21 @@ export default function ChatPage() {
                   
                   {/* Reaction Buttons */}
                   <div className="flex gap-2 mt-1 text-sm">
-                    {["❤️", "😂", "👍", "🔥"].map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addReaction(m.id, emoji);
-                        }}
-                        className="px-2 border rounded hover:bg-gray-200"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
+                    <button onClick={() => reactMessage(m.id, "❤️")}>❤️</button>
+                    <button onClick={() => reactMessage(m.id, "👍")}>👍</button>
+                    <button onClick={() => reactMessage(m.id, "😂")}>😂</button>
+                    <button onClick={() => reactMessage(m.id, "😡")}>😡</button>
                   </div>
 
                   {/* Show reactions */}
-                  {m.reactions && m.reactions.length > 0 && (
-                    <div className="flex gap-2 mt-1 text-xs text-gray-600">
-                      {m.reactions.map((r: any) => (
-                        <span key={r.id} className="border px-2 rounded">
-                          {r.emoji}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="text-sm text-gray-500 mt-1">
+                    {m.reactions?.map((r: any) => (
+                      <span key={r.id} className="mr-1">
+                        {r.emoji}
+                      </span>
+                    ))}
+                  </div>
+
                 </div>
               ))
             )}
