@@ -155,24 +155,22 @@ export const setupMessaging = (io, socket) => {
   socket.on("delete_message", async ({ messageId }) => {
     try {
       const message = await prisma.message.findUnique({
-        where: { id: messageId },
+        where: { id: messageId }
       });
-
+  
       if (!message) return;
-
+  
+      // only sender can delete
       if (message.senderId !== socket.userId) return;
-
-      const deleted = await prisma.message.update({
+  
+      await prisma.message.update({
         where: { id: messageId },
-        data: {
-          isDeleted: true,
-          content: "Message deleted",
-        },
+        data: { isDeleted: true }
       });
-
+  
       io.to(message.conversationId).emit("message_deleted", {
-        messageId: deleted.id,
-        conversationId: deleted.conversationId,
+        messageId,
+        conversationId: message.conversationId
       });
     } catch (err) {
       console.error("delete_message error:", err.message);
