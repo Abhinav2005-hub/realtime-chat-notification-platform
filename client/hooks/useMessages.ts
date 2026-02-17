@@ -171,6 +171,9 @@ export const useMessages = (conversationId: string | null) => {
   /* Delete message */
   const deleteMessage = (messageId: string) => {
     socket?.emit("delete_message", { messageId });
+
+    // Instant UI update 
+    socket?.emit("delete_message", { messageId });
   };
 
   /* React message */
