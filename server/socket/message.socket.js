@@ -47,6 +47,7 @@ export const setupMessaging = (io, socket) => {
             select: { id: true, name: true, email: true },
           },
           replyTo: true,
+          reactions: true,
         },
       });
 
@@ -59,6 +60,7 @@ export const setupMessaging = (io, socket) => {
         replyTo: message.replyTo,
         createdAt: message.createdAt,
         status: "delivered",
+        reactions: message.reactions,
       });
 
       await prisma.message.update({
@@ -84,6 +86,40 @@ export const setupMessaging = (io, socket) => {
     }
   });
 
+  /* EDIT MESSAGE */
+  socket.on("edit_message", async ({ messageId, newContent }) => {
+    try {
+      if (!newContent || !newContent.trim()) return;
+
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+      });
+
+      if (!message) return;
+
+      if (message.senderId !== socket.userId) {
+        socket.emit("error_message", "You can only edit your own messages");
+        return;
+      }
+
+      const updated = await prisma.message.update({
+        where: { id: messageId },
+        data: {
+          content: newContent,
+          isEdited: true,
+        },
+      });
+
+      io.to(updated.conversationId).emit("message_edited", {
+        messageId: updated.id,
+        newContent: updated.content,
+        isEdited: updated.isEdited,
+      });
+    } catch (err) {
+      console.error("edit_message error:", err.message);
+    }
+  });
+
   /* MARK SEEN */
   socket.on("mark_seen", async ({ conversationId }) => {
     try {
@@ -103,7 +139,7 @@ export const setupMessaging = (io, socket) => {
         seenBy: socket.userId,
       });
     } catch (err) {
-      console.error("mark_seen error:", err);
+      console.error("mark_seen error:", err.message);
     }
   });
 
@@ -142,38 +178,38 @@ export const setupMessaging = (io, socket) => {
       console.error("delete_message error:", err.message);
     }
   });
-};
 
-/* REACT MESSAGE */
-socket.on("react_message", async ({ messageId, emoji }) => {
-  try {
-    const message = await prisma.message.findUnique({
-      where: { id: messageId }
-    });
+  /* REACT MESSAGE */
+  socket.on("react_message", async ({ messageId, emoji }) => {
+    try {
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+      });
 
-    if (!message) return;
+      if (!message) return;
 
-    const reaction = await prisma.reaction.upsert({
-      where: {
-        userId_messageId: {
+      const reaction = await prisma.reaction.upsert({
+        where: {
+          userId_messageId: {
+            userId: socket.userId,
+            messageId,
+          },
+        },
+        update: { emoji },
+        create: {
+          emoji,
           userId: socket.userId,
-          messageId
-        }
-      },
-      update: { emoji },
-      create: {
-        emoji,
-        userId: socket.userId,
-        messageId
-      }
-    });
+          messageId,
+        },
+      });
 
-    io.to(message.conversationId).emit("message_reacted", {
-      messageId,
-      userId: socket.userId,
-      emoji
-    });
-  } catch (err) {
-    console.error("react_message error:", err.message);
-  }
-});
+      io.to(message.conversationId).emit("message_reacted", {
+        messageId,
+        userId: socket.userId,
+        emoji: reaction.emoji,
+      });
+    } catch (err) {
+      console.error("react_message error:", err.message);
+    }
+  });
+};

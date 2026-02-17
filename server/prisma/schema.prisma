@@ -58,6 +58,8 @@ model Message {
   status         String   @default("sent") // sent | delivered | seen
   replyToId      String?
   isDeleted      Boolean  @default(false)
+  isEdited       Boolean @default(false)
+
 
   sender       User        @relation(fields: [senderId], references: [id])
   conversation Conversation @relation(fields: [conversationId], references: [id])
