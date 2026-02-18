@@ -183,14 +183,15 @@ export const setupMessaging = (io, socket) => {
       const message = await prisma.message.findUnique({
         where: { id: messageId },
       });
-
+  
       if (!message) return;
-
+  
       const reaction = await prisma.reaction.upsert({
         where: {
-          userId_messageId: {
+          userId_messageId_emoji: {
             userId: socket.userId,
             messageId,
+            emoji,
           },
         },
         update: { emoji },
@@ -200,14 +201,15 @@ export const setupMessaging = (io, socket) => {
           messageId,
         },
       });
-
+  
       io.to(message.conversationId).emit("message_reacted", {
         messageId,
         userId: socket.userId,
-        emoji: reaction.emoji,
+        emoji,
       });
     } catch (err) {
       console.error("react_message error:", err.message);
     }
   });
+  
 };

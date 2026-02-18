@@ -13,3 +13,7 @@ export const sendMessageSchema = Joi.object({
 export const markSeenSchema = Joi.object({
   conversationId: Joi.string().uuid().required()
 });
+
+export const editMessageSchema = Joi.object({
+  newContent: Joi.string().min(1).required()
+});

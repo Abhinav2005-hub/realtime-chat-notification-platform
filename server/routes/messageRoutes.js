@@ -1,8 +1,8 @@
 import express from "express";
-import { getMessages, markMessagesSeen, deleteMessage } from "../controllers/messageController.js";
+import { getMessages, markMessagesSeen, deleteMessage, editMessage } from "../controllers/messageController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { validateRequest } from "../middleware/validateRequest.js";
-import { getMessageSchema, markSeenSchema } from "../validators/messageValidators.js";
+import { getMessageSchema, markSeenSchema, editMessageSchema } from "../validators/messageValidators.js";
 
 const router = express.Router();
 
@@ -19,6 +19,13 @@ router.post(
   protect,
   markMessagesSeen
 );
+
+router.put(
+    "/:id",
+    validateRequest(editMessageSchema),
+    protect,
+    editMessage
+)
 
 // DELETE MESSAGE
 router.delete("/:id", protect, deleteMessage);

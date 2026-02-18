@@ -72,3 +72,34 @@ export const deleteMessage = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const editMessage = async (req, res) => {
+  const { id } = req.params;
+  const { content } = req.body;
+
+  try {
+    const message = await prisma.message.findUnique({
+      where: { id }
+    });
+
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.senderId !== req.userId) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    const updated = await prisma.message.update({
+      where: { id },
+      data: {
+        content,
+        isEdited: true
+      }
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
