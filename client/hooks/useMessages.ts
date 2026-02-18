@@ -16,6 +16,7 @@ export interface Message {
   conversationId: string;
   createdAt: string;
   status?: "sent" | "delivered" | "seen";
+  isEdited?: boolean;
   isDeleted?: boolean;
 
   replyTo?: Message | null;
@@ -155,7 +156,7 @@ export const useMessages = (conversationId: string | null) => {
     return () => {
       socket.off("message_reacted", handler);
     };
-  }, [socket]);
+  }, [socket, conversationId]);
 
   /* Send message */
   const sendMessage = (content: string, replyToId?: string | null) => {
@@ -171,15 +172,50 @@ export const useMessages = (conversationId: string | null) => {
   /* Delete message */
   const deleteMessage = (messageId: string) => {
     socket?.emit("delete_message", { messageId });
-
-    // Instant UI update 
-    socket?.emit("delete_message", { messageId });
   };
+
+  /* Edit Handler */
+  useEffect(() => {
+    if (!socket) return;
+  
+    const editHandler = (payload: {
+      messageId: string;
+      content: string;
+      isEdited: boolean;
+    }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === payload.messageId
+            ? { ...m, content: payload.content, isEdited: payload.isEdited }
+            : m
+        )
+      );
+    };
+  
+    socket.on("message_edited", editHandler);
+  
+    return () => {
+      socket.off("message_edited", editHandler);
+    };
+  }, [socket]);  
+
+  /* Edit message */
+  const editMessage = (messageId: string, content: string) => {
+    socket?.emit("edit_message", { messageId, content });
+  
+    // optimistic UI update
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId ? { ...m, content, isEdited: true } : m
+      )
+    );
+  };
+  
 
   /* React message */
   const reactMessage = (messageId: string, emoji: string) => {
     socket?.emit("react_message", { messageId, emoji });
   };
 
-  return { messages, sendMessage, deleteMessage, reactMessage };
+  return { messages, sendMessage, deleteMessage, reactMessage, editMessage };
 };

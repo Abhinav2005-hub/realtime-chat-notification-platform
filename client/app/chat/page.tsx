@@ -25,13 +25,17 @@ export default function ChatPage() {
   useSeen(activeConversationId);
 
   /* Messages */
-  const { messages, sendMessage, deleteMessage, reactMessage } =
+  const { messages, sendMessage, deleteMessage, reactMessage, editMessage } =
     useMessages(activeConversationId);
 
   /* Typing */
   const { typingUser, sendTyping } = useTyping(activeConversationId);
 
   const [text, setText] = useState("");
+
+  /* NEW STATES FOR EDIT FEATURE */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   // start 1-to-1 chat
   const handleStartChat = async (userId: string) => {
@@ -82,7 +86,7 @@ export default function ChatPage() {
               messages.map((m: any) => (
                 <div
                   key={m.id}
-                  className="mb-2 p-2 border rounded cursor-pointer hover:bg-gray-100"
+                  className="mb-2 p-2 border rounded hover:bg-gray-100"
                   onClick={() => setReplyToMessage(m)}
                 >
                   {/* Reply preview inside message */}
@@ -92,25 +96,90 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  <p>{m.content}</p>
+                  {/* EDIT UI */}
+                  {editingId === m.id ? (
+                    <input
+                      className="border p-1 w-full mb-2"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          editMessage(m.id, editText);
+                          setEditingId(null);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <p>
+                      {m.content}{" "}
+                      {m.isEdited && (
+                        <span className="text-xs text-gray-400">(edited)</span>
+                      )}
+                    </p>
+                  )}
 
-                  {/* Delete Button */}
-                  <button
-                     onClick = {(e) => {
-                      e.stopPropagation();
-                      deleteMessage(m.id);
-                     }}
-                     className="text-red-500 text-sm ml-3"
-                  >
-                    Delete
-                  </button>
-                  
+                  {/* EDIT + DELETE BUTTONS */}
+                  <div className="flex gap-3 mt-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingId(m.id);
+                        setEditText(m.content);
+                      }}
+                      className="text-blue-500 text-sm"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteMessage(m.id);
+                      }}
+                      className="text-red-500 text-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
+
                   {/* Reaction Buttons */}
-                  <div className="flex gap-2 mt-1 text-sm">
-                    <button onClick={() => reactMessage(m.id, "❤️")}>❤️</button>
-                    <button onClick={() => reactMessage(m.id, "👍")}>👍</button>
-                    <button onClick={() => reactMessage(m.id, "😂")}>😂</button>
-                    <button onClick={() => reactMessage(m.id, "😡")}>😡</button>
+                  <div className="flex gap-2 mt-2 text-sm">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        reactMessage(m.id, "❤️");
+                      }}
+                    >
+                      ❤️
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        reactMessage(m.id, "👍");
+                      }}
+                    >
+                      👍
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        reactMessage(m.id, "😂");
+                      }}
+                    >
+                      😂
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        reactMessage(m.id, "😡");
+                      }}
+                    >
+                      😡
+                    </button>
                   </div>
 
                   {/* Show reactions */}
@@ -121,7 +190,6 @@ export default function ChatPage() {
                       </span>
                     ))}
                   </div>
-
                 </div>
               ))
             )}
