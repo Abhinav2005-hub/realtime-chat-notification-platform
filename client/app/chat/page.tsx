@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useConversations } from "@/hooks/useConversations";
-import { useMessages } from "@/hooks/useMessages";
+import { useMessages, Message } from "@/hooks/useMessages";
 import { useJoinConversation } from "@/hooks/useJoinConversation";
 import { useTyping } from "@/hooks/useTyping";
 import { useSeen } from "@/hooks/useSeen";
@@ -18,7 +18,11 @@ export default function ChatPage() {
     useState<string | null>(null);
 
   /* Reply state */
-  const [replyToMessage, setReplyToMessage] = useState<any>(null);
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+
+  /* NEW STATES FOR EDIT FEATURE */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   /* Socket lifecycle */
   useJoinConversation(activeConversationId);
@@ -33,17 +37,20 @@ export default function ChatPage() {
 
   const [text, setText] = useState("");
 
-  /* NEW STATES FOR EDIT FEATURE */
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
+  /* Reset states when switching conversation */
+  useEffect(() => {
+    setReplyToMessage(null);
+    setEditingId(null);
+    setEditText("");
+    setText("");
+  }, [activeConversationId]);
 
   // start 1-to-1 chat
   const handleStartChat = async (userId: string) => {
     try {
       const conversation = await createOneToOneConversation(userId);
       setActiveConversationId(conversation.id);
-
-      refetch(); // refresh sidebar conversations
+      refetch();
     } catch (err) {
       console.error("Failed to start chat", err);
     }
@@ -83,11 +90,10 @@ export default function ChatPage() {
             {messages.length === 0 ? (
               <p className="text-gray-500">No messages yet</p>
             ) : (
-              messages.map((m: any) => (
+              messages.map((m: Message) => (
                 <div
                   key={m.id}
                   className="mb-2 p-2 border rounded hover:bg-gray-100"
-                  onClick={() => setReplyToMessage(m)}
                 >
                   {/* Reply preview inside message */}
                   {m.replyTo && (
@@ -102,7 +108,6 @@ export default function ChatPage() {
                       className="border p-1 w-full mb-2"
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           editMessage(m.id, editText);
@@ -119,11 +124,19 @@ export default function ChatPage() {
                     </p>
                   )}
 
-                  {/* EDIT + DELETE BUTTONS */}
+                  {/* Buttons */}
                   <div className="flex gap-3 mt-2">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      onClick={() => {
+                        setReplyToMessage(m);
+                      }}
+                      className="text-green-600 text-sm"
+                    >
+                      Reply
+                    </button>
+
+                    <button
+                      onClick={() => {
                         setEditingId(m.id);
                         setEditText(m.content);
                       }}
@@ -133,10 +146,7 @@ export default function ChatPage() {
                     </button>
 
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteMessage(m.id);
-                      }}
+                      onClick={() => deleteMessage(m.id)}
                       className="text-red-500 text-sm"
                     >
                       Delete
@@ -145,46 +155,15 @@ export default function ChatPage() {
 
                   {/* Reaction Buttons */}
                   <div className="flex gap-2 mt-2 text-sm">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        reactMessage(m.id, "❤️");
-                      }}
-                    >
-                      ❤️
-                    </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        reactMessage(m.id, "👍");
-                      }}
-                    >
-                      👍
-                    </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        reactMessage(m.id, "😂");
-                      }}
-                    >
-                      😂
-                    </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        reactMessage(m.id, "😡");
-                      }}
-                    >
-                      😡
-                    </button>
+                    <button onClick={() => reactMessage(m.id, "❤️")}>❤️</button>
+                    <button onClick={() => reactMessage(m.id, "👍")}>👍</button>
+                    <button onClick={() => reactMessage(m.id, "😂")}>😂</button>
+                    <button onClick={() => reactMessage(m.id, "😡")}>😡</button>
                   </div>
 
                   {/* Show reactions */}
                   <div className="text-sm text-gray-500 mt-1">
-                    {m.reactions?.map((r: any) => (
+                    {m.reactions?.map((r) => (
                       <span key={r.id} className="mr-1">
                         {r.emoji}
                       </span>
