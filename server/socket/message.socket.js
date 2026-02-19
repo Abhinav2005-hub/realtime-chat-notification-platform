@@ -5,7 +5,6 @@ import { sendNotification } from "../services/notificationService.js";
 const prisma = new PrismaClient();
 
 export const setupMessaging = (io, socket) => {
-
   /* JOIN CONVERSATION ROOM */
   socket.on("conversation:join", ({ conversationId }) => {
     if (!conversationId) return;
@@ -63,11 +62,13 @@ export const setupMessaging = (io, socket) => {
         reactions: message.reactions,
       });
 
+      // update message status to delivered
       await prisma.message.update({
         where: { id: message.id },
         data: { status: "delivered" },
       });
 
+      // notify offline users
       const members = await prisma.conversationMember.findMany({
         where: {
           conversationId,
@@ -87,9 +88,9 @@ export const setupMessaging = (io, socket) => {
   });
 
   /* EDIT MESSAGE */
-  socket.on("edit_message", async ({ messageId, newContent }) => {
+  socket.on("edit_message", async ({ messageId, content }) => {
     try {
-      if (!newContent || !newContent.trim()) return;
+      if (!messageId || !content || !content.trim()) return;
 
       const message = await prisma.message.findUnique({
         where: { id: messageId },
@@ -105,18 +106,18 @@ export const setupMessaging = (io, socket) => {
       const updated = await prisma.message.update({
         where: { id: messageId },
         data: {
-          content: newContent,
+          content,
           isEdited: true,
         },
       });
 
       io.to(updated.conversationId).emit("message_edited", {
         messageId: updated.id,
-        newContent: updated.content,
+        content: updated.content,
         isEdited: updated.isEdited,
       });
     } catch (err) {
-      console.error("edit_message error:", err.message);
+      console.error("edit_message error:", err);
     }
   });
 
@@ -136,16 +137,16 @@ export const setupMessaging = (io, socket) => {
 
       io.to(conversationId).emit("messages_seen", {
         conversationId,
-        seenBy: socket.userId,
       });
     } catch (err) {
-      console.error("mark_seen error:", err.message);
+      console.error("mark_seen error:", err);
     }
   });
 
   /* TYPING */
   socket.on("typing", ({ conversationId }) => {
     if (!conversationId) return;
+
     socket.to(conversationId).emit("user_typing", {
       userId: socket.userId,
     });
@@ -154,62 +155,97 @@ export const setupMessaging = (io, socket) => {
   /* DELETE MESSAGE */
   socket.on("delete_message", async ({ messageId }) => {
     try {
+      if (!messageId) return;
+
       const message = await prisma.message.findUnique({
-        where: { id: messageId }
+        where: { id: messageId },
       });
-  
+
       if (!message) return;
-  
+
       // only sender can delete
-      if (message.senderId !== socket.userId) return;
-  
+      if (message.senderId !== socket.userId) {
+        socket.emit("error_message", "You can only delete your own messages");
+        return;
+      }
+
       await prisma.message.update({
         where: { id: messageId },
-        data: { isDeleted: true }
+        data: {
+          isDeleted: true,
+          content: "Message deleted",
+        },
       });
-  
+
       io.to(message.conversationId).emit("message_deleted", {
         messageId,
-        conversationId: message.conversationId
+        conversationId: message.conversationId,
       });
     } catch (err) {
-      console.error("delete_message error:", err.message);
+      console.error("delete_message error:", err);
     }
   });
 
   /* REACT MESSAGE */
   socket.on("react_message", async ({ messageId, emoji }) => {
     try {
+      if (!messageId || !emoji) return;
+
       const message = await prisma.message.findUnique({
         where: { id: messageId },
+        select: { conversationId: true },
       });
-  
+
       if (!message) return;
-  
-      const reaction = await prisma.reaction.upsert({
+
+      // check if user already reacted to this message
+      const existingReaction = await prisma.reaction.findFirst({
         where: {
-          userId_messageId_emoji: {
-            userId: socket.userId,
+          messageId,
+          userId: socket.userId,
+        },
+      });
+
+      if (existingReaction) {
+        if (existingReaction.emoji === emoji) {
+          // toggle remove reaction
+          await prisma.reaction.delete({
+            where: { id: existingReaction.id },
+          });
+        } else {
+          // update emoji
+          await prisma.reaction.update({
+            where: { id: existingReaction.id },
+            data: { emoji },
+          });
+        }
+      } else {
+        // add reaction
+        await prisma.reaction.create({
+          data: {
             messageId,
+            userId: socket.userId,
             emoji,
           },
-        },
-        update: { emoji },
-        create: {
-          emoji,
-          userId: socket.userId,
-          messageId,
+        });
+      }
+
+      // fetch updated reactions
+      const updatedReactions = await prisma.reaction.findMany({
+        where: { messageId },
+        select: {
+          id: true,
+          emoji: true,
+          userId: true,
         },
       });
-  
-      io.to(message.conversationId).emit("message_reacted", {
+
+      io.to(message.conversationId).emit("message_reaction_updated", {
         messageId,
-        userId: socket.userId,
-        emoji,
+        reactions: updatedReactions,
       });
-    } catch (err) {
-      console.error("react_message error:", err.message);
+    } catch (error) {
+      console.error("react_message error:", error);
     }
   });
-  
 };
