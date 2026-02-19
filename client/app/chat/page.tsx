@@ -20,22 +20,23 @@ export default function ChatPage() {
   /* Reply state */
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
 
-  /* NEW STATES FOR EDIT FEATURE */
+  /* Edit state */
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+
+  /* Message input */
+  const [text, setText] = useState("");
 
   /* Socket lifecycle */
   useJoinConversation(activeConversationId);
   useSeen(activeConversationId);
 
-  /* Messages */
+  /* Messages hook */
   const { messages, sendMessage, deleteMessage, reactMessage, editMessage } =
     useMessages(activeConversationId);
 
   /* Typing */
   const { typingUser, sendTyping } = useTyping(activeConversationId);
-
-  const [text, setText] = useState("");
 
   /* Reset states when switching conversation */
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function ChatPage() {
     setText("");
   }, [activeConversationId]);
 
-  // start 1-to-1 chat
+  /* Start new 1-to-1 conversation */
   const handleStartChat = async (userId: string) => {
     try {
       const conversation = await createOneToOneConversation(userId);
@@ -56,9 +57,9 @@ export default function ChatPage() {
     }
   };
 
+  /* Send message */
   const handleSend = () => {
-    if (!activeConversationId) return;
-    if (!text.trim()) return;
+    if (!activeConversationId || !text.trim()) return;
 
     sendMessage(text, replyToMessage?.id || null);
 
@@ -69,7 +70,7 @@ export default function ChatPage() {
   return (
     <RequireAuth>
       <div className="flex h-screen">
-        {/* LEFT: Users + Conversations */}
+        {/* LEFT PANEL */}
         <div className="w-64 border-r flex flex-col">
           <UserList onSelect={handleStartChat} />
 
@@ -79,7 +80,7 @@ export default function ChatPage() {
           />
         </div>
 
-        {/* RIGHT: Chat */}
+        {/* RIGHT PANEL */}
         <div className="flex-1 p-4 flex flex-col">
           {!activeConversationId && (
             <p className="text-gray-500">Select a conversation</p>
@@ -93,25 +94,26 @@ export default function ChatPage() {
               messages.map((m: Message) => (
                 <div
                   key={m.id}
-                  className="mb-2 p-2 border rounded hover:bg-gray-100"
+                  className="mb-3 p-3 border rounded hover:bg-gray-50"
                 >
-                  {/* Reply preview inside message */}
+                  {/* Reply Preview Inside Message */}
                   {m.replyTo && (
-                    <div className="text-xs text-gray-500 border-l-4 pl-2 mb-1">
+                    <div className="text-xs text-gray-500 border-l-4 pl-2 mb-2">
                       Replying to: {m.replyTo.content}
                     </div>
                   )}
 
-                  {/* EDIT UI */}
+                  {/* Edit Mode */}
                   {editingId === m.id ? (
                     <input
                       className="border p-1 w-full mb-2"
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === "Enter" && editText.trim()) {
                           editMessage(m.id, editText);
                           setEditingId(null);
+                          setEditText("");
                         }
                       }}
                     />
@@ -119,72 +121,88 @@ export default function ChatPage() {
                     <p>
                       {m.content}{" "}
                       {m.isEdited && (
-                        <span className="text-xs text-gray-400">(edited)</span>
+                        <span className="text-xs text-gray-400">
+                          (edited)
+                        </span>
                       )}
                     </p>
                   )}
 
-                  {/* Buttons */}
-                  <div className="flex gap-3 mt-2">
-                    <button
-                      onClick={() => {
-                        setReplyToMessage(m);
-                      }}
-                      className="text-green-600 text-sm"
-                    >
-                      Reply
-                    </button>
+                  {/* Action Buttons */}
+                  {!m.isDeleted && (
+                    <div className="flex gap-3 mt-2 text-sm">
+                      <button
+                        onClick={() => setReplyToMessage(m)}
+                        className="text-green-600"
+                      >
+                        Reply
+                      </button>
 
-                    <button
-                      onClick={() => {
-                        setEditingId(m.id);
-                        setEditText(m.content);
-                      }}
-                      className="text-blue-500 text-sm"
-                    >
-                      Edit
-                    </button>
+                      <button
+                        onClick={() => {
+                          setEditingId(m.id);
+                          setEditText(m.content);
+                        }}
+                        className="text-blue-500"
+                      >
+                        Edit
+                      </button>
 
-                    <button
-                      onClick={() => deleteMessage(m.id)}
-                      className="text-red-500 text-sm"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                      <button
+                        onClick={() => deleteMessage(m.id)}
+                        className="text-red-500"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
 
                   {/* Reaction Buttons */}
                   <div className="flex gap-2 mt-2 text-sm">
-                    <button onClick={() => reactMessage(m.id, "❤️")}>❤️</button>
-                    <button onClick={() => reactMessage(m.id, "👍")}>👍</button>
-                    <button onClick={() => reactMessage(m.id, "😂")}>😂</button>
-                    <button onClick={() => reactMessage(m.id, "😡")}>😡</button>
+                    <button onClick={() => reactMessage(m.id, "❤️")}>
+                      ❤️
+                    </button>
+                    <button onClick={() => reactMessage(m.id, "👍")}>
+                      👍
+                    </button>
+                    <button onClick={() => reactMessage(m.id, "😂")}>
+                      😂
+                    </button>
+                    <button onClick={() => reactMessage(m.id, "😡")}>
+                      😡
+                    </button>
                   </div>
 
                   {/* Show reactions */}
-                  <div className="text-sm text-gray-500 mt-1">
-                    {m.reactions?.map((r) => (
-                      <span key={r.id} className="mr-1">
-                        {r.emoji}
-                      </span>
-                    ))}
-                  </div>
+                  {m.reactions && m.reactions.length > 0 && (
+                    <div className="text-sm text-gray-500 mt-1">
+                      {m.reactions.map((r) => (
+                        <span key={r.id} className="mr-1">
+                          {r.emoji}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}
           </div>
 
-          {/* Typing indicator */}
+          {/* Typing Indicator */}
           {typingUser && (
-            <p className="text-sm text-gray-400 mb-1">Someone is typing...</p>
+            <p className="text-sm text-gray-400 mb-1">
+              Someone is typing...
+            </p>
           )}
 
-          {/* Reply preview above input */}
+          {/* Reply Preview Above Input */}
           {replyToMessage && (
             <div className="border p-2 mb-2 bg-gray-100 rounded">
               <p className="text-sm text-gray-600">
                 Replying to:{" "}
-                <span className="font-semibold">{replyToMessage.content}</span>
+                <span className="font-semibold">
+                  {replyToMessage.content}
+                </span>
               </p>
 
               <button
@@ -196,7 +214,7 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Input */}
+          {/* Input Section */}
           {activeConversationId && (
             <>
               <input
@@ -225,3 +243,4 @@ export default function ChatPage() {
     </RequireAuth>
   );
 }
+

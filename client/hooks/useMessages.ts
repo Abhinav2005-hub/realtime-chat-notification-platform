@@ -15,6 +15,7 @@ export interface Message {
   senderId: string;
   conversationId: string;
   createdAt: string;
+  updatedAt?: string;
   status?: "sent" | "delivered" | "seen";
 
   isEdited?: boolean;
@@ -22,10 +23,6 @@ export interface Message {
 
   replyTo?: Message | null;
   reactions?: Reaction[];
-}
-
-interface MessagesSeenPayload {
-  conversationId: string;
 }
 
 interface ReactionUpdatedPayload {
@@ -50,9 +47,7 @@ export const useMessages = (conversationId: string | null) => {
         if (!token) return;
 
         const res = await axios.get(`${API_URL}/messages/${conversationId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         setMessages(Array.isArray(res.data) ? res.data : []);
@@ -65,32 +60,23 @@ export const useMessages = (conversationId: string | null) => {
     fetchMessages();
   }, [conversationId]);
 
-  /* Incoming messages + delete updates */
+  /* Receive new message */
   useEffect(() => {
     if (!socket) return;
 
-    const messageHandler = (message: Message) => {
+    const handler = (message: Message) => {
       if (message.conversationId === conversationId) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
       }
     };
 
-    const deleteHandler = ({ messageId }: { messageId: string }) => {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? { ...m, content: "Message deleted", isDeleted: true }
-            : m
-        )
-      );
-    };
-
-    socket.on("receive_message", messageHandler);
-    socket.on("message_deleted", deleteHandler);
+    socket.on("receive_message", handler);
 
     return () => {
-      socket.off("receive_message", messageHandler);
-      socket.off("message_deleted", deleteHandler);
+      socket.off("receive_message", handler);
     };
   }, [socket, conversationId]);
 
@@ -98,31 +84,26 @@ export const useMessages = (conversationId: string | null) => {
   useEffect(() => {
     if (!socket) return;
 
-    const seenHandler = ({
-      conversationId: seenConversationId,
-    }: MessagesSeenPayload) => {
-      if (seenConversationId !== conversationId) return;
+    const handler = ({ conversationId: seenId }: { conversationId: string }) => {
+      if (seenId !== conversationId) return;
 
       setMessages((prev) =>
-        prev.map((m) => ({
-          ...m,
-          status: "seen",
-        }))
+        prev.map((m) => ({ ...m, status: "seen" }))
       );
     };
 
-    socket.on("messages_seen", seenHandler);
+    socket.on("messages_seen", handler);
 
     return () => {
-      socket.off("messages_seen", seenHandler);
+      socket.off("messages_seen", handler);
     };
   }, [socket, conversationId]);
 
-  /* Reaction updates (FULL reactions array update like 1st code) */
+  /* Reaction updates */
   useEffect(() => {
     if (!socket) return;
 
-    const reactionHandler = (payload: ReactionUpdatedPayload) => {
+    const handler = (payload: ReactionUpdatedPayload) => {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === payload.messageId
@@ -132,10 +113,10 @@ export const useMessages = (conversationId: string | null) => {
       );
     };
 
-    socket.on("message_reaction_updated", reactionHandler);
+    socket.on("message_reaction_updated", handler);
 
     return () => {
-      socket.off("message_reaction_updated", reactionHandler);
+      socket.off("message_reaction_updated", handler);
     };
   }, [socket]);
 
@@ -143,24 +124,51 @@ export const useMessages = (conversationId: string | null) => {
   useEffect(() => {
     if (!socket) return;
 
-    const editHandler = (payload: {
+    const handler = (payload: {
       messageId: string;
       content: string;
       isEdited: boolean;
+      updatedAt?: string;
     }) => {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === payload.messageId
-            ? { ...m, content: payload.content, isEdited: payload.isEdited }
+            ? {
+                ...m,
+                content: payload.content,
+                isEdited: payload.isEdited,
+                updatedAt: payload.updatedAt,
+              }
             : m
         )
       );
     };
 
-    socket.on("message_edited", editHandler);
+    socket.on("message_edited", handler);
 
     return () => {
-      socket.off("message_edited", editHandler);
+      socket.off("message_edited", handler);
+    };
+  }, [socket]);
+
+  /* Delete updates */
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = ({ messageId }: { messageId: string }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content: "Message deleted", isDeleted: true }
+            : m
+        )
+      );
+    };
+
+    socket.on("message_deleted", handler);
+
+    return () => {
+      socket.off("message_deleted", handler);
     };
   }, [socket]);
 
@@ -180,14 +188,15 @@ export const useMessages = (conversationId: string | null) => {
     socket?.emit("delete_message", { messageId });
   };
 
-  /* Edit message */
+  /* Edit message (optimistic update) */
   const editMessage = (messageId: string, content: string) => {
     socket?.emit("edit_message", { messageId, content });
 
-    // optimistic UI update
     setMessages((prev) =>
       prev.map((m) =>
-        m.id === messageId ? { ...m, content, isEdited: true } : m
+        m.id === messageId
+          ? { ...m, content, isEdited: true }
+          : m
       )
     );
   };
@@ -196,6 +205,6 @@ export const useMessages = (conversationId: string | null) => {
   const reactMessage = (messageId: string, emoji: string) => {
     socket?.emit("react_message", { messageId, emoji });
   };
-  
+
   return { messages, sendMessage, deleteMessage, reactMessage, editMessage };
 };
