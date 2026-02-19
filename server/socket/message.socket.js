@@ -8,6 +8,7 @@ export const setupMessaging = (io, socket) => {
   /* JOIN CONVERSATION ROOM */
   socket.on("conversation:join", ({ conversationId }) => {
     if (!conversationId) return;
+
     socket.join(conversationId);
     console.log(`Socket ${socket.id} joined ${conversationId}`);
   });
@@ -15,6 +16,7 @@ export const setupMessaging = (io, socket) => {
   /* LEAVE CONVERSATION ROOM */
   socket.on("conversation:leave", ({ conversationId }) => {
     if (!conversationId) return;
+
     socket.leave(conversationId);
     console.log(`Socket ${socket.id} left ${conversationId}`);
   });
@@ -50,6 +52,7 @@ export const setupMessaging = (io, socket) => {
         },
       });
 
+      // emit realtime message
       io.to(conversationId).emit("receive_message", {
         id: message.id,
         content: message.content,
@@ -58,17 +61,20 @@ export const setupMessaging = (io, socket) => {
         conversationId: message.conversationId,
         replyTo: message.replyTo,
         createdAt: message.createdAt,
+        updatedAt: message.updatedAt,
         status: "delivered",
         reactions: message.reactions,
+        isEdited: message.isEdited,
+        isDeleted: message.isDeleted,
       });
 
-      // update message status to delivered
+      // update message status to delivered in DB
       await prisma.message.update({
         where: { id: message.id },
         data: { status: "delivered" },
       });
 
-      // notify offline users
+      // notify offline members
       const members = await prisma.conversationMember.findMany({
         where: {
           conversationId,
@@ -78,6 +84,7 @@ export const setupMessaging = (io, socket) => {
 
       for (const member of members) {
         const isOnline = await redis.exists(`user:${member.userId}`);
+
         if (!isOnline) {
           await sendNotification(member.userId, "New Message", content);
         }
@@ -90,7 +97,7 @@ export const setupMessaging = (io, socket) => {
   /* EDIT MESSAGE */
   socket.on("edit_message", async ({ messageId, content }) => {
     try {
-      if (!messageId || !content || !content.trim()) return;
+      if (!messageId || !content?.trim()) return;
 
       const message = await prisma.message.findUnique({
         where: { id: messageId },
@@ -98,6 +105,7 @@ export const setupMessaging = (io, socket) => {
 
       if (!message) return;
 
+      // only sender can edit
       if (message.senderId !== socket.userId) {
         socket.emit("error_message", "You can only edit your own messages");
         return;
@@ -115,41 +123,11 @@ export const setupMessaging = (io, socket) => {
         messageId: updated.id,
         content: updated.content,
         isEdited: updated.isEdited,
+        updatedAt: updated.updatedAt,
       });
-    } catch (err) {
-      console.error("edit_message error:", err);
+    } catch (error) {
+      console.error("edit_message error:", error);
     }
-  });
-
-  /* MARK SEEN */
-  socket.on("mark_seen", async ({ conversationId }) => {
-    try {
-      if (!conversationId) return;
-
-      await prisma.message.updateMany({
-        where: {
-          conversationId,
-          senderId: { not: socket.userId },
-          status: { not: "seen" },
-        },
-        data: { status: "seen" },
-      });
-
-      io.to(conversationId).emit("messages_seen", {
-        conversationId,
-      });
-    } catch (err) {
-      console.error("mark_seen error:", err);
-    }
-  });
-
-  /* TYPING */
-  socket.on("typing", ({ conversationId }) => {
-    if (!conversationId) return;
-
-    socket.to(conversationId).emit("user_typing", {
-      userId: socket.userId,
-    });
   });
 
   /* DELETE MESSAGE */
@@ -169,7 +147,7 @@ export const setupMessaging = (io, socket) => {
         return;
       }
 
-      await prisma.message.update({
+      const deleted = await prisma.message.update({
         where: { id: messageId },
         data: {
           isDeleted: true,
@@ -178,11 +156,47 @@ export const setupMessaging = (io, socket) => {
       });
 
       io.to(message.conversationId).emit("message_deleted", {
-        messageId,
-        conversationId: message.conversationId,
+        messageId: deleted.id,
+        conversationId: deleted.conversationId,
       });
-    } catch (err) {
-      console.error("delete_message error:", err);
+    } catch (error) {
+      console.error("delete_message error:", error);
+    }
+  });
+
+  /* MARK SEEN */
+  socket.on("mark_seen", async ({ conversationId }) => {
+    try {
+      if (!conversationId) return;
+
+      await prisma.message.updateMany({
+        where: {
+          conversationId,
+          senderId: { not: socket.userId },
+          status: { not: "seen" },
+        },
+        data: { status: "seen" },
+      });
+
+      io.to(conversationId).emit("messages_seen", {
+        conversationId,
+        seenBy: socket.userId,
+      });
+    } catch (error) {
+      console.error("mark_seen error:", error);
+    }
+  });
+
+  /* TYPING INDICATOR */
+  socket.on("typing", ({ conversationId }) => {
+    try {
+      if (!conversationId) return;
+
+      socket.to(conversationId).emit("user_typing", {
+        userId: socket.userId,
+      });
+    } catch (error) {
+      console.error("typing error:", error);
     }
   });
 
@@ -198,7 +212,7 @@ export const setupMessaging = (io, socket) => {
 
       if (!message) return;
 
-      // check if user already reacted to this message
+      // check if user already reacted
       const existingReaction = await prisma.reaction.findFirst({
         where: {
           messageId,
@@ -220,7 +234,7 @@ export const setupMessaging = (io, socket) => {
           });
         }
       } else {
-        // add reaction
+        // create new reaction
         await prisma.reaction.create({
           data: {
             messageId,
@@ -230,7 +244,7 @@ export const setupMessaging = (io, socket) => {
         });
       }
 
-      // fetch updated reactions
+      // updated reactions list
       const updatedReactions = await prisma.reaction.findMany({
         where: { messageId },
         select: {
@@ -249,3 +263,4 @@ export const setupMessaging = (io, socket) => {
     }
   });
 };
+
