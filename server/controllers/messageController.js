@@ -4,22 +4,39 @@ const prisma = new PrismaClient();
 
 export const getMessages = async (req, res) => {
   const { conversationId } = req.params;
+  const { cursor, limit = 20 } = req.query;
 
   try {
+    const take = Number(limit);
+
     const messages = await prisma.message.findMany({
-      where: { conversationId, isDeleted: false },
-      include: {
-        reactions: true,
-        replyTo: {
-          select: { id: true, content: true }
-        }
+      where: {
+        conversationId,
+        isDeleted: false
       },
-      orderBy: { createdAt: "asc" }
+      orderBy: {
+        createdAt: "desc"
+      },
+      take,
+      ...(cursor && {
+        skip: 1,
+        cursor: { id: cursor }
+      })
     });
 
-    res.status(200).json(messages);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    const nextCursor =
+      messages.length === take
+        ? messages[messages.length - 1].id
+        : null;
+
+    res.json({
+      messages: [...messages].reverse(), 
+      nextCursor
+    });
+
+  } catch (error) {
+    console.error("getMessages error:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
