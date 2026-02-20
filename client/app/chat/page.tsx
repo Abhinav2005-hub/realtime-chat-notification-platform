@@ -31,9 +31,17 @@ export default function ChatPage() {
   useJoinConversation(activeConversationId);
   useSeen(activeConversationId);
 
-  /* Messages hook */
-  const { messages, sendMessage, deleteMessage, reactMessage, editMessage } =
-    useMessages(activeConversationId);
+  /* ✅ UPDATED: Pagination enabled */
+  const {
+    messages,
+    sendMessage,
+    deleteMessage,
+    reactMessage,
+    editMessage,
+    fetchMore,
+    hasMore,
+    loading,
+  } = useMessages(activeConversationId);
 
   /* Typing */
   const { typingUser, sendTyping } = useTyping(activeConversationId);
@@ -45,6 +53,13 @@ export default function ChatPage() {
     setEditText("");
     setText("");
   }, [activeConversationId]);
+
+  /* Scroll handler for infinite scroll */
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop === 0 && hasMore && !loading) {
+      fetchMore();
+    }
+  };
 
   /* Start new 1-to-1 conversation */
   const handleStartChat = async (userId: string) => {
@@ -73,7 +88,6 @@ export default function ChatPage() {
         {/* LEFT PANEL */}
         <div className="w-64 border-r flex flex-col">
           <UserList onSelect={handleStartChat} />
-
           <ConversationList
             conversations={conversations}
             onSelect={setActiveConversationId}
@@ -86,8 +100,15 @@ export default function ChatPage() {
             <p className="text-gray-500">Select a conversation</p>
           )}
 
-          {/* Messages */}
-          <div className="flex-1 border p-3 overflow-y-auto mb-2">
+          {/* ✅ UPDATED MESSAGE CONTAINER */}
+          <div
+            className="flex-1 border p-3 overflow-y-auto mb-2"
+            onScroll={handleScroll}
+          >
+            {loading && (
+              <p className="text-center text-gray-400">Loading...</p>
+            )}
+
             {messages.length === 0 ? (
               <p className="text-gray-500">No messages yet</p>
             ) : (
@@ -96,7 +117,7 @@ export default function ChatPage() {
                   key={m.id}
                   className="mb-3 p-3 border rounded hover:bg-gray-50"
                 >
-                  {/* Reply Preview Inside Message */}
+                  {/* Reply Preview */}
                   {m.replyTo && (
                     <div className="text-xs text-gray-500 border-l-4 pl-2 mb-2">
                       Replying to: {m.replyTo.content}
@@ -157,7 +178,7 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  {/* Reaction Buttons */}
+                  {/* Reactions */}
                   <div className="flex gap-2 mt-2 text-sm">
                     <button onClick={() => reactMessage(m.id, "❤️")}>
                       ❤️
@@ -173,7 +194,6 @@ export default function ChatPage() {
                     </button>
                   </div>
 
-                  {/* Show reactions */}
                   {m.reactions && m.reactions.length > 0 && (
                     <div className="text-sm text-gray-500 mt-1">
                       {m.reactions.map((r) => (
@@ -204,7 +224,6 @@ export default function ChatPage() {
                   {replyToMessage.content}
                 </span>
               </p>
-
               <button
                 className="text-xs text-red-500 mt-1"
                 onClick={() => setReplyToMessage(null)}
@@ -243,4 +262,3 @@ export default function ChatPage() {
     </RequireAuth>
   );
 }
-

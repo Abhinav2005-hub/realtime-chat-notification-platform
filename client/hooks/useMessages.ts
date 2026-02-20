@@ -17,10 +17,8 @@ export interface Message {
   createdAt: string;
   updatedAt?: string;
   status?: "sent" | "delivered" | "seen";
-
   isEdited?: boolean;
   isDeleted?: boolean;
-
   replyTo?: Message | null;
   reactions?: Reaction[];
 }
@@ -32,35 +30,63 @@ interface ReactionUpdatedPayload {
 
 export const useMessages = (conversationId: string | null) => {
   const socket = useSocket();
+
   const [messages, setMessages] = useState<Message[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  /* Fetch old messages */
-  useEffect(() => {
-    if (!conversationId) {
-      setMessages([]);
-      return;
-    }
+  /* PAGINATION FETCH */
 
-    const fetchMessages = async () => {
-      try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        if (!token) return;
+  const fetchMessages = async (isInitial = false) => {
+    if (!conversationId || loading || (!hasMore && !isInitial)) return;
 
-        const res = await axios.get(`${API_URL}/messages/${conversationId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+    try {
+      setLoading(true);
 
-        setMessages(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        console.error("Failed to load messages", err);
-        setMessages([]);
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) return;
+
+      const res = await axios.get(
+        `${API_URL}/messages/${conversationId}`,
+        {
+          params: {
+            cursor: isInitial ? null : cursor,
+            limit: 20,
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const newMessages: Message[] = res.data.messages;
+
+      if (isInitial) {
+        setMessages(newMessages);
+      } else {
+        setMessages((prev) => [...newMessages, ...prev]);
       }
-    };
 
-    fetchMessages();
+      setCursor(res.data.nextCursor);
+      setHasMore(!!res.data.nextCursor);
+    } catch (err) {
+      console.error("Pagination error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* Reset on conversation change */
+  useEffect(() => {
+    setMessages([]);
+    setCursor(null);
+    setHasMore(true);
+    fetchMessages(true);
   }, [conversationId]);
 
-  /* Receive new message */
+  /* REALTIME NEW MESSAGE */
+
   useEffect(() => {
     if (!socket) return;
 
@@ -80,7 +106,8 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [socket, conversationId]);
 
-  /* Seen updates */
+  /* SEEN UPDATES */
+
   useEffect(() => {
     if (!socket) return;
 
@@ -99,7 +126,8 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [socket, conversationId]);
 
-  /* Reaction updates */
+  /* REACTION UPDATES */
+
   useEffect(() => {
     if (!socket) return;
 
@@ -120,7 +148,8 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [socket]);
 
-  /* Edit updates */
+  /* EDIT UPDATES */
+
   useEffect(() => {
     if (!socket) return;
 
@@ -151,7 +180,8 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [socket]);
 
-  /* Delete updates */
+  /* DELETE UPDATES */
+
   useEffect(() => {
     if (!socket) return;
 
@@ -172,7 +202,8 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [socket]);
 
-  /* Send message */
+  /* EMIT FUNCTIONS */
+
   const sendMessage = (content: string, replyToId?: string | null) => {
     if (!conversationId || !content.trim()) return;
 
@@ -183,28 +214,27 @@ export const useMessages = (conversationId: string | null) => {
     });
   };
 
-  /* Delete message */
   const deleteMessage = (messageId: string) => {
     socket?.emit("delete_message", { messageId });
   };
 
-  /* Edit message (optimistic update) */
   const editMessage = (messageId: string, content: string) => {
     socket?.emit("edit_message", { messageId, content });
-
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === messageId
-          ? { ...m, content, isEdited: true }
-          : m
-      )
-    );
   };
 
-  /* React message */
   const reactMessage = (messageId: string, emoji: string) => {
     socket?.emit("react_message", { messageId, emoji });
   };
 
-  return { messages, sendMessage, deleteMessage, reactMessage, editMessage };
+  return {
+    messages,
+    sendMessage,
+    deleteMessage,
+    editMessage,
+    reactMessage,
+    fetchMore: () => fetchMessages(false),
+    hasMore,
+    loading,
+  };
 };
+
