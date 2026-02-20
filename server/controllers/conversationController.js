@@ -85,14 +85,19 @@ export const createGroupConversation = async (req, res) => {
   }
 
   try {
+    // Remove duplicates & creator
+    const uniqueMembers = [...new Set(memberIds)].filter(
+      (id) => id !== userId
+    );
+
     const conversation = await prisma.conversation.create({
       data: {
         isGroup: true,
         name,
         members: {
           create: [
-            { userId },
-            ...memberIds.map((id) => ({ userId: id })),
+            { userId }, // creator
+            ...uniqueMembers.map((id) => ({ userId: id })),
           ],
         },
       },
