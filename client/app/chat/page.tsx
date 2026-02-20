@@ -17,6 +17,46 @@ export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] =
     useState<string | null>(null);
 
+    const handleRename = async () => {
+      if (!activeConversationId) return;
+    
+      const newName = prompt("Enter new group name");
+      if (!newName) return;
+    
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/conversations/${activeConversationId}/rename`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ newName }),
+        });
+    
+        refetch();
+      } catch (err) {
+        console.error("Rename failed", err);
+      }
+    };
+
+    const handleLeave = async () => {
+      if (!activeConversationId) return;
+    
+      try {
+        await fetch(`/api/conversations/${activeConversationId}/leave`, {
+          method: "DELETE",
+        });
+    
+        setActiveConversationId(null);
+        refetch();
+      } catch (err) {
+        console.error("Leave failed", err);
+      }
+    };
+
+    const activeConversation = conversations?.find(
+      (c) => c.id === activeConversationId
+    );
+
   /* Reply state */
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
 
@@ -31,7 +71,7 @@ export default function ChatPage() {
   useJoinConversation(activeConversationId);
   useSeen(activeConversationId);
 
-  /* ✅ UPDATED: Pagination enabled */
+  /* UPDATED: Pagination enabled */
   const {
     messages,
     sendMessage,
@@ -100,7 +140,26 @@ export default function ChatPage() {
             <p className="text-gray-500">Select a conversation</p>
           )}
 
-          {/* ✅ UPDATED MESSAGE CONTAINER */}
+          {/* GROUP CONTROLS */}
+          {activeConversation?.isGroup && (
+            <div className="border p-2 mb-2 bg-gray-50">
+              <button
+                onClick={handleRename}
+                className="mr-4 text-blue-500"
+              >
+                Rename
+              </button>
+
+              <button
+                onClick={handleLeave}
+                className="text-red-500"
+              >
+                Leave
+              </button>
+            </div>
+          )}
+
+          {/* UPDATED MESSAGE CONTAINER */}
           <div
             className="flex-1 border p-3 overflow-y-auto mb-2"
             onScroll={handleScroll}

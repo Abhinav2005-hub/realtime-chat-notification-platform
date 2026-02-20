@@ -20,7 +20,6 @@ export const createOneToOneConversation = async (req, res) => {
   }
 
   try {
-    // CORRECT EXISTING CONVERSATION CHECK
     const existingConversation = await prisma.conversation.findFirst({
       where: {
         isGroup: false,
@@ -32,9 +31,7 @@ export const createOneToOneConversation = async (req, res) => {
       include: {
         members: {
           include: {
-            user: {
-              select: { id: true, name: true, email: true },
-            },
+            user: { select: { id: true, name: true, email: true } },
           },
         },
       },
@@ -44,7 +41,6 @@ export const createOneToOneConversation = async (req, res) => {
       return res.json(existingConversation);
     }
 
-    // REATE NEW CONVERSATION
     const conversation = await prisma.conversation.create({
       data: {
         isGroup: false,
@@ -58,9 +54,7 @@ export const createOneToOneConversation = async (req, res) => {
       include: {
         members: {
           include: {
-            user: {
-              select: { id: true, name: true, email: true },
-            },
+            user: { select: { id: true, name: true, email: true } },
           },
         },
       },
@@ -85,7 +79,6 @@ export const createGroupConversation = async (req, res) => {
   }
 
   try {
-    // Remove duplicates & creator
     const uniqueMembers = [...new Set(memberIds)].filter(
       (id) => id !== userId
     );
@@ -94,9 +87,10 @@ export const createGroupConversation = async (req, res) => {
       data: {
         isGroup: true,
         name,
+        createdBy: userId,
         members: {
           create: [
-            { userId }, // creator
+            { userId }, // admin
             ...uniqueMembers.map((id) => ({ userId: id })),
           ],
         },
@@ -104,9 +98,7 @@ export const createGroupConversation = async (req, res) => {
       include: {
         members: {
           include: {
-            user: {
-              select: { id: true, name: true, email: true },
-            },
+            user: { select: { id: true, name: true, email: true } },
           },
         },
       },
@@ -116,6 +108,111 @@ export const createGroupConversation = async (req, res) => {
   } catch (error) {
     console.error("createGroupConversation error:", error);
     return res.status(500).json({ message: "Failed to create group" });
+  }
+};
+
+/* RENAME GROUP */
+export const renameGroup = async (req, res) => {
+  const { conversationId } = req.params;
+  const { newName } = req.body;
+
+  if (!newName) {
+    return res.status(400).json({ message: "New name required" });
+  }
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation || conversation.createdBy !== req.userId) {
+      return res.status(403).json({ message: "Only admin can rename group" });
+    }
+
+    const updated = await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { name: newName },
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    console.error("renameGroup error:", error);
+    return res.status(500).json({ message: "Failed to rename group" });
+  }
+};
+
+/* ADD MEMBER */
+export const addGroupMember = async (req, res) => {
+  const { conversationId } = req.params;
+  const { userId } = req.body;
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation || conversation.createdBy !== req.userId) {
+      return res.status(403).json({ message: "Only admin can add members" });
+    }
+
+    await prisma.conversationMember.create({
+      data: {
+        conversationId,
+        userId,
+      },
+    });
+
+    return res.json({ message: "Member added" });
+  } catch (error) {
+    console.error("addGroupMember error:", error);
+    return res.status(500).json({ message: "Failed to add member" });
+  }
+};
+
+/* REMOVE MEMBER */
+export const removeGroupMember = async (req, res) => {
+  const { conversationId } = req.params;
+  const { userId } = req.body;
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation || conversation.createdBy !== req.userId) {
+      return res.status(403).json({ message: "Only admin can remove members" });
+    }
+
+    await prisma.conversationMember.deleteMany({
+      where: {
+        conversationId,
+        userId,
+      },
+    });
+
+    return res.json({ message: "Member removed" });
+  } catch (error) {
+    console.error("removeGroupMember error:", error);
+    return res.status(500).json({ message: "Failed to remove member" });
+  }
+};
+
+/* LEAVE GROUP */
+export const leaveGroup = async (req, res) => {
+  const { conversationId } = req.params;
+
+  try {
+    await prisma.conversationMember.deleteMany({
+      where: {
+        conversationId,
+        userId: req.userId,
+      },
+    });
+
+    return res.json({ message: "You left the group" });
+  } catch (error) {
+    console.error("leaveGroup error:", error);
+    return res.status(500).json({ message: "Failed to leave group" });
   }
 };
 
@@ -133,6 +230,9 @@ export const getConversations = async (req, res) => {
         },
       },
       include: {
+        creator: {
+          select: { id: true, name: true, email: true },
+        },
         members: {
           include: {
             user: {
