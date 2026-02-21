@@ -7,6 +7,10 @@ import {
   getConversations,
   createGroupConversation,
   createOneToOneConversation,
+  renameGroup,
+  addGroupMember,
+  removeGroupMember,
+  leaveGroup,
 } from "../controllers/conversationController.js";
 
 const router = express.Router();
