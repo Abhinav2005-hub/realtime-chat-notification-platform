@@ -6,12 +6,17 @@ import { api } from "@/lib/api";
 
 export interface Conversation {
   id: string;
+  name?: string;
   isGroup: boolean;
-  members: any[];
+  members: {
+    user: {
+      id: string;
+      email: string;
+    };
+  }[];
   messages?: {
     id: string;
     content: string;
-    createdAt: string;
   }[];
 }
 
