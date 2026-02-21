@@ -69,45 +69,43 @@ export const createOneToOneConversation = async (req, res) => {
 
 /* CREATE GROUP CONVERSATION */
 export const createGroupConversation = async (req, res) => {
-  const userId = req.userId;
-  const { name, memberIds } = req.body;
-
-  if (!name || !Array.isArray(memberIds) || memberIds.length < 2) {
-    return res.status(400).json({
-      message: "Group name and at least 2 members are required",
-    });
-  }
-
   try {
-    const uniqueMembers = [...new Set(memberIds)].filter(
-      (id) => id !== userId
-    );
+    const { name, memberIds } = req.body;
+    const userId = req.userId;
+
+    if (!name || !Array.isArray(memberIds) || memberIds.length < 1) {
+      return res.status(400).json({ message: "Invalid group data" });
+    }
+
+    // Ensure creator is included
+    if (!memberIds.includes(userId)) {
+      memberIds.push(userId);
+    }
 
     const conversation = await prisma.conversation.create({
       data: {
-        isGroup: true,
         name,
+        isGroup: true,
         createdBy: userId,
         members: {
-          create: [
-            { userId }, // admin
-            ...uniqueMembers.map((id) => ({ userId: id })),
-          ],
+          create: memberIds.map((id) => ({
+            userId: id,
+          })),
         },
       },
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true, email: true } },
+            user: true,
           },
         },
       },
     });
 
-    return res.status(201).json(conversation);
+    res.status(201).json(conversation);
   } catch (error) {
-    console.error("createGroupConversation error:", error);
-    return res.status(500).json({ message: "Failed to create group" });
+    console.error("Create group error:", error);
+    res.status(500).json({ message: "Failed to create group" });
   }
 };
 

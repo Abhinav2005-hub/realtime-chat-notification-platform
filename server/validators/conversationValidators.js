@@ -14,7 +14,7 @@ export const createConversationSchema = Joi.object({
  */
 export const createGroupSchema = Joi.object({
   name: Joi.string().min(3).required(),
-  members: Joi.array()
+  memberIds: Joi.array()
     .items(Joi.string().uuid())
     .min(1)
     .required()
