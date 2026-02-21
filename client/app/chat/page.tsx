@@ -10,6 +10,7 @@ import RequireAuth from "@/components/auth/RequireAuth";
 import ConversationList from "@/components/chat/ConversationList";
 import UserList from "@/components/chat/UserList";
 import { createOneToOneConversation } from "@/lib/conversationApi";
+import { api } from "@/lib/api";
 
 export default function ChatPage() {
   const { conversations, refetch } = useConversations();
@@ -17,61 +18,88 @@ export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] =
     useState<string | null>(null);
 
-    const handleRename = async () => {
-      if (!activeConversationId) return;
-    
-      const newName = prompt("Enter new group name");
-      if (!newName) return;
-    
-      try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/conversations/${activeConversationId}/rename`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ newName }),
-        });
-    
-        refetch();
-      } catch (err) {
-        console.error("Rename failed", err);
-      }
-    };
+  /* ================= GROUP STATE ================= */
 
-    const handleLeave = async () => {
-      if (!activeConversationId) return;
-    
-      try {
-        await fetch(`/api/conversations/${activeConversationId}/leave`, {
-          method: "DELETE",
-        });
-    
-        setActiveConversationId(null);
-        refetch();
-      } catch (err) {
-        console.error("Leave failed", err);
-      }
-    };
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
-    const activeConversation = conversations?.find(
-      (c) => c.id === activeConversationId
-    );
+  const activeConversation = conversations?.find(
+    (c) => c.id === activeConversationId
+  );
 
-  /* Reply state */
+  /* ================= GROUP ACTIONS ================= */
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) return;
+
+    if (selectedUsers.length < 2) {
+      alert("Select at least 2 users");
+      return;
+    }
+
+    try {
+      const newGroup = await api("/conversations/group", {
+        method: "POST",
+        body: JSON.stringify({
+          name: groupName,
+          memberIds: selectedUsers,
+        }),
+      });
+
+      setShowGroupModal(false);
+      setGroupName("");
+      setSelectedUsers([]);
+      setActiveConversationId(newGroup.id);
+      refetch();
+    } catch (err) {
+      console.error("Failed to create group", err);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!activeConversationId) return;
+
+    const newName = prompt("Enter new group name");
+    if (!newName) return;
+
+    try {
+      await api(`/conversations/${activeConversationId}/rename`, {
+        method: "PATCH",
+        body: JSON.stringify({ newName }),
+      });
+
+      refetch();
+    } catch (err) {
+      console.error("Rename failed", err);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!activeConversationId) return;
+
+    try {
+      await api(`/conversations/${activeConversationId}/leave`, {
+        method: "DELETE",
+      });
+
+      setActiveConversationId(null);
+      refetch();
+    } catch (err) {
+      console.error("Leave failed", err);
+    }
+  };
+
+  /* ================= MESSAGE STATE ================= */
+
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
-
-  /* Edit state */
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
-
-  /* Message input */
   const [text, setText] = useState("");
 
-  /* Socket lifecycle */
   useJoinConversation(activeConversationId);
   useSeen(activeConversationId);
 
-  /* UPDATED: Pagination enabled */
   const {
     messages,
     sendMessage,
@@ -83,10 +111,8 @@ export default function ChatPage() {
     loading,
   } = useMessages(activeConversationId);
 
-  /* Typing */
   const { typingUser, sendTyping } = useTyping(activeConversationId);
 
-  /* Reset states when switching conversation */
   useEffect(() => {
     setReplyToMessage(null);
     setEditingId(null);
@@ -94,14 +120,12 @@ export default function ChatPage() {
     setText("");
   }, [activeConversationId]);
 
-  /* Scroll handler for infinite scroll */
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (e.currentTarget.scrollTop === 0 && hasMore && !loading) {
       fetchMore();
     }
   };
 
-  /* Start new 1-to-1 conversation */
   const handleStartChat = async (userId: string) => {
     try {
       const conversation = await createOneToOneConversation(userId);
@@ -112,22 +136,32 @@ export default function ChatPage() {
     }
   };
 
-  /* Send message */
   const handleSend = () => {
     if (!activeConversationId || !text.trim()) return;
 
     sendMessage(text, replyToMessage?.id || null);
-
     setText("");
     setReplyToMessage(null);
   };
 
+  /* ================= UI ================= */
+
   return (
     <RequireAuth>
       <div className="flex h-screen">
+
         {/* LEFT PANEL */}
         <div className="w-64 border-r flex flex-col">
+
+          <button
+            onClick={() => setShowGroupModal(true)}
+            className="bg-green-600 text-white p-2 m-2 rounded"
+          >
+            + Create Group
+          </button>
+
           <UserList onSelect={handleStartChat} />
+
           <ConversationList
             conversations={conversations}
             onSelect={setActiveConversationId}
@@ -136,6 +170,7 @@ export default function ChatPage() {
 
         {/* RIGHT PANEL */}
         <div className="flex-1 p-4 flex flex-col">
+
           {!activeConversationId && (
             <p className="text-gray-500">Select a conversation</p>
           )}
@@ -159,7 +194,7 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* UPDATED MESSAGE CONTAINER */}
+          {/* MESSAGE CONTAINER */}
           <div
             className="flex-1 border p-3 overflow-y-auto mb-2"
             onScroll={handleScroll}
@@ -176,14 +211,12 @@ export default function ChatPage() {
                   key={m.id}
                   className="mb-3 p-3 border rounded hover:bg-gray-50"
                 >
-                  {/* Reply Preview */}
                   {m.replyTo && (
                     <div className="text-xs text-gray-500 border-l-4 pl-2 mb-2">
                       Replying to: {m.replyTo.content}
                     </div>
                   )}
 
-                  {/* Edit Mode */}
                   {editingId === m.id ? (
                     <input
                       className="border p-1 w-full mb-2"
@@ -208,7 +241,6 @@ export default function ChatPage() {
                     </p>
                   )}
 
-                  {/* Action Buttons */}
                   {!m.isDeleted && (
                     <div className="flex gap-3 mt-2 text-sm">
                       <button
@@ -237,20 +269,11 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  {/* Reactions */}
                   <div className="flex gap-2 mt-2 text-sm">
-                    <button onClick={() => reactMessage(m.id, "❤️")}>
-                      ❤️
-                    </button>
-                    <button onClick={() => reactMessage(m.id, "👍")}>
-                      👍
-                    </button>
-                    <button onClick={() => reactMessage(m.id, "😂")}>
-                      😂
-                    </button>
-                    <button onClick={() => reactMessage(m.id, "😡")}>
-                      😡
-                    </button>
+                    <button onClick={() => reactMessage(m.id, "❤️")}>❤️</button>
+                    <button onClick={() => reactMessage(m.id, "👍")}>👍</button>
+                    <button onClick={() => reactMessage(m.id, "😂")}>😂</button>
+                    <button onClick={() => reactMessage(m.id, "😡")}>😡</button>
                   </div>
 
                   {m.reactions && m.reactions.length > 0 && (
@@ -267,14 +290,12 @@ export default function ChatPage() {
             )}
           </div>
 
-          {/* Typing Indicator */}
           {typingUser && (
             <p className="text-sm text-gray-400 mb-1">
               Someone is typing...
             </p>
           )}
 
-          {/* Reply Preview Above Input */}
           {replyToMessage && (
             <div className="border p-2 mb-2 bg-gray-100 rounded">
               <p className="text-sm text-gray-600">
@@ -292,7 +313,6 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Input Section */}
           {activeConversationId && (
             <>
               <input
@@ -318,6 +338,52 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* GROUP MODAL */}
+      {showGroupModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+          <div className="bg-white p-4 rounded w-96">
+            <h2 className="font-bold mb-3">Create Group</h2>
+
+            <input
+              placeholder="Group Name"
+              className="border p-2 w-full mb-3"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+            />
+
+            <UserList
+              multiSelect
+              selectedUsers={selectedUsers}
+              onSelect={(userId) => {
+                setSelectedUsers((prev) =>
+                  prev.includes(userId)
+                    ? prev.filter((id) => id !== userId)
+                    : [...prev, userId]
+                );
+              }}
+            />
+
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                onClick={() => {
+                  setShowGroupModal(false);
+                  setSelectedUsers([]);
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleCreateGroup}
+                className="bg-green-600 text-white px-3 py-1 rounded"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </RequireAuth>
   );
 }
