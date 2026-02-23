@@ -3,7 +3,7 @@
 import { TOKEN_KEY } from "./constants";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
   export const api = async (
     endpoint: string,

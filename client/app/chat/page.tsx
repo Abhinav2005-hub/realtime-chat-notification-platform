@@ -37,7 +37,7 @@ export default function ChatPage() {
       return;
     }
     try {
-      const newGroup = await api("/api/conversations/group", {
+      const newGroup = await api("/conversations/group", {
         method: "POST",
         body: JSON.stringify({
           name: groupName,
@@ -64,7 +64,7 @@ export default function ChatPage() {
 
     try {
       await api(`/conversations/${activeConversationId}/rename`, {
-        method: "PATCH",
+        method: "PUT",
         body: JSON.stringify({ newName }),
       });
 
@@ -79,7 +79,7 @@ export default function ChatPage() {
 
     try {
       await api(`/conversations/${activeConversationId}/leave`, {
-        method: "DELETE",
+        method: "POST",
       });
 
       setActiveConversationId(null);

@@ -43,7 +43,7 @@ export const useConversations = (): UseConversationsResult => {
     try {
       setLoading(true);
 
-      const data = await api("/api/conversations");
+      const data = await api("/conversations");
 
       setConversations(Array.isArray(data) ? data : []);
     } catch (error) {

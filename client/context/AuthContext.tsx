@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       try {
-        const data = await api("/api/auth/me", {
+        const data = await api("/auth/me", {
           headers: {
             Authorization: `Bearer ${storedToken}`,
           },

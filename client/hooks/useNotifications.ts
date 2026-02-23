@@ -6,7 +6,7 @@ export const useNotifications = () => {
 
     useEffect(() => {
         const fetchCount = async () => {
-            const data = await api("/api/notifications/unread");
+            const data = await api("/notifications/unread");
             setCount(data.count);
         };
 

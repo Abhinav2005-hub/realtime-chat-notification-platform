@@ -10,7 +10,7 @@ export const fetchConversations = async () => {
         throw new Error("Not authenticated");
     }
 
-    return api("/api/conversations", {
+    return api("/conversations", {
         headers: {
             Authorization: `Bearer ${token}`,
         },
@@ -19,7 +19,7 @@ export const fetchConversations = async () => {
 
 // create 1-to-1 conversation
 export const createOneToOneConversation = async (targetUserId: string) => {
-    return api("/api/conversations/one-to-one", {
+    return api("/conversations/one-to-one", {
       method: "POST",
       body: JSON.stringify({ targetUserId }),
     });
