@@ -41,5 +41,4 @@ router.put("/:conversationId/rename", protect, renameGroup);
 router.post("/:conversationId/add", protect, addGroupMember);
 router.post("/:conversationId/remove", protect, removeGroupMember);
 router.post("/:conversationId/leave", protect, leaveGroup);
-
 export default router;
