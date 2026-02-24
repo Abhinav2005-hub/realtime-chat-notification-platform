@@ -5,36 +5,39 @@ const prisma = new PrismaClient();
 
 export const setupPresence = async (io, socket) => {
   try {
-    // Mark user online
+    // Store socket ID in Redis (user is online)
     await redis.set(`user:${socket.userId}`, socket.id);
 
-    // Join existing conversations
+    // Join all conversations user is part of
     const memberships = await prisma.conversationMember.findMany({
-      where: { userId: socket.userId }
+      where: { userId: socket.userId },
     });
 
     memberships.forEach((m) => {
       socket.join(m.conversationId);
     });
 
-    io.emit("user_online", socket.userId);
+    // Notify others (not the current socket)
+    socket.broadcast.emit("user_online", socket.userId);
 
-    // JOIN NEW CONVERSATION DYNAMICALLY
+    // Join conversation dynamically
     socket.on("join_conversation", (conversationId) => {
       socket.join(conversationId);
     });
 
-    // Optional but good practice
     socket.on("leave_conversation", (conversationId) => {
       socket.leave(conversationId);
     });
 
     socket.on("disconnect", async () => {
+      // Remove from Redis
       await redis.del(`user:${socket.userId}`);
-      io.emit("user_offline", socket.userId);
+
+      // Notify others user is offline
+      socket.broadcast.emit("user_offline", socket.userId);
     });
+
   } catch (error) {
     console.error("presence error:", error.message);
   }
 };
-
