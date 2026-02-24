@@ -2,31 +2,36 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { Socket } from "socket.io-client";
-import { connectSocket } from "@/lib/socket";
-import { useAuth } from "./AuthContext";
+import { connectSocket, disconnectSocket } from "@/lib/socket";
+import { TOKEN_KEY } from "@/lib/constants";
 
 const SocketContext = createContext<Socket | null>(null);
 
-export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user, token, isAuthReady } = useAuth();
-  const [socket, setSocket] = useState<Socket | null>(null);
+  export const SocketProvider = ({
+    children,
+  }: {
+    children: React.ReactNode;
+  }) => {
+    const [socket, setSocket] = useState<Socket | null>(null);
 
-  useEffect(() => {
-    if (!isAuthReady || !user || !token) return;
+    useEffect(() => {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if(!token) return;
 
-    const s = connectSocket(token);
-    setSocket(s);
+      const newSocket = connectSocket(token);
+      setSocket(newSocket);
 
-    return () => {
-      s.disconnect();
-    };
-  }, [isAuthReady, user, token]);
+      return () => {
+        disconnectSocket();
+      };
+    }, []);
+    return (
+      <SocketContext.Provider value={socket}>
+        {children}
+      </SocketContext.Provider>
+    );
+  };
 
-  return (
-    <SocketContext.Provider value={socket}>
-      {children}
-    </SocketContext.Provider>
-  );
-};
-
-export const useSocket = () => useContext(SocketContext);
+  export const useSocket = () => {
+    return useContext(SocketContext);
+  };

@@ -22,7 +22,7 @@ export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] =
     useState<string | null>(null);
 
-  /* ---------------- GROUP STATE ---------------- */
+  /* GROUP STATE */
 
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -31,7 +31,7 @@ export default function ChatPage() {
   const activeConversation =
     conversations?.find((c) => c.id === activeConversationId) || null;
 
-  /* ---------------- GROUP ACTIONS ---------------- */
+  /* GROUP ACTIONS */
 
   const handleCreateGroup = async () => {
     if (!groupName.trim()) return;
@@ -83,7 +83,7 @@ export default function ChatPage() {
     refetch();
   };
 
-  /* ---------------- MESSAGE STATE ---------------- */
+  /* MESSAGE STATE */
 
   const [replyToMessage, setReplyToMessage] =
     useState<Message | null>(null);
@@ -121,7 +121,7 @@ export default function ChatPage() {
     setReplyToMessage(null);
   };
 
-  /* ---------------- UI ---------------- */
+  /* UI */
 
   return (
     <RequireAuth>

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { TOKEN_KEY } from "@/lib/constants";
+import { disconnectSocket } from "@/lib/socket";
 import { api } from "@/lib/api";
 import { User } from "@/types/auth";
 
@@ -63,9 +64,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
+    disconnectSocket();
     setUser(null);
-    setToken(null);
-    setIsAuthReady(true);
   };
 
   return (

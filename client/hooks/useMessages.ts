@@ -79,50 +79,59 @@ export const useMessages = (conversationId: string | null) => {
 
   /* Reset on conversation change */
   useEffect(() => {
+    if (!conversationId) return;
+  
     setMessages([]);
     setCursor(null);
     setHasMore(true);
+  
     fetchMessages(true);
   }, [conversationId]);
 
   /* REALTIME NEW MESSAGE */
 
   useEffect(() => {
-    if (!socket) return;
-
-    const handler = (message: Message) => {
-      if (message.conversationId === conversationId) {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === message.id)) return prev;
-          return [...prev, message];
-        });
-      }
+    if (!socket || !conversationId) return;
+  
+    const handleReceiveMessage = (message: Message) => {
+      if (message.conversationId !== conversationId) return;
+  
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev;
+        return [...prev, message];
+      });
     };
-
-    socket.on("receive_message", handler);
-
+  
+    socket.off("receive_message", handleReceiveMessage);
+    socket.on("receive_message", handleReceiveMessage);
+  
     return () => {
-      socket.off("receive_message", handler);
+      socket.off("receive_message", handleReceiveMessage);
     };
   }, [socket, conversationId]);
 
   /* SEEN UPDATES */
 
   useEffect(() => {
-    if (!socket) return;
-
-    const handler = ({ conversationId: seenId }: { conversationId: string }) => {
+    if (!socket || !conversationId) return;
+  
+    const handleMessagesSeen = ({
+      conversationId: seenId,
+    }: {
+      conversationId: string;
+    }) => {
       if (seenId !== conversationId) return;
-
+  
       setMessages((prev) =>
         prev.map((m) => ({ ...m, status: "seen" }))
       );
     };
-
-    socket.on("messages_seen", handler);
-
+  
+    socket.off("messages_seen", handleMessagesSeen);
+    socket.on("messages_seen", handleMessagesSeen);
+  
     return () => {
-      socket.off("messages_seen", handler);
+      socket.off("messages_seen", handleMessagesSeen);
     };
   }, [socket, conversationId]);
 
@@ -130,8 +139,8 @@ export const useMessages = (conversationId: string | null) => {
 
   useEffect(() => {
     if (!socket) return;
-
-    const handler = (payload: ReactionUpdatedPayload) => {
+  
+    const handleReactionUpdate = (payload: ReactionUpdatedPayload) => {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === payload.messageId
@@ -140,11 +149,12 @@ export const useMessages = (conversationId: string | null) => {
         )
       );
     };
-
-    socket.on("message_reaction_updated", handler);
-
+  
+    socket.off("message_reaction_updated", handleReactionUpdate);
+    socket.on("message_reaction_updated", handleReactionUpdate);
+  
     return () => {
-      socket.off("message_reaction_updated", handler);
+      socket.off("message_reaction_updated", handleReactionUpdate);
     };
   }, [socket]);
 
@@ -152,8 +162,8 @@ export const useMessages = (conversationId: string | null) => {
 
   useEffect(() => {
     if (!socket) return;
-
-    const handler = (payload: {
+  
+    const handleEdit = (payload: {
       messageId: string;
       content: string;
       isEdited: boolean;
@@ -172,11 +182,12 @@ export const useMessages = (conversationId: string | null) => {
         )
       );
     };
-
-    socket.on("message_edited", handler);
-
+  
+    socket.off("message_edited", handleEdit);
+    socket.on("message_edited", handleEdit);
+  
     return () => {
-      socket.off("message_edited", handler);
+      socket.off("message_edited", handleEdit);
     };
   }, [socket]);
 
@@ -184,8 +195,8 @@ export const useMessages = (conversationId: string | null) => {
 
   useEffect(() => {
     if (!socket) return;
-
-    const handler = ({ messageId }: { messageId: string }) => {
+  
+    const handleDelete = ({ messageId }: { messageId: string }) => {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
@@ -194,11 +205,12 @@ export const useMessages = (conversationId: string | null) => {
         )
       );
     };
-
-    socket.on("message_deleted", handler);
-
+  
+    socket.off("message_deleted", handleDelete);
+    socket.on("message_deleted", handleDelete);
+  
     return () => {
-      socket.off("message_deleted", handler);
+      socket.off("message_deleted", handleDelete);
     };
   }, [socket]);
 

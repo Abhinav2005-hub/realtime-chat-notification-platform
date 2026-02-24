@@ -19,6 +19,9 @@ export const usePresence = () => {
           prev.filter((id) => id !== userId)
         );
       };
+      
+      socket.off("user_online", handleOnline);
+      socket.off("user_offline", handleOffline);
   
       socket.on("user_online", handleOnline);
       socket.on("user_offline", handleOffline);

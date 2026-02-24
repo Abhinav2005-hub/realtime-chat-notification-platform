@@ -1,23 +1,23 @@
 import { io, Socket } from "socket.io-client";
 
-let socket: any;
+let socket: Socket | null = null;
 
 export const connectSocket = (token: string) => {
+  if (socket) return socket; 
+
   socket = io("http://localhost:5000", {
-    auth: {
-      token: token,
-    },
-  });
-
-  socket.on("connect", () => {
-    console.log("Socket connected:", socket.id);
-  });
-
-  socket.on("connect_error",  (err: any) => {
-    console.log("Socket connection error:", err.message);
+    auth: { token },
+    transports: ["websocket"],
   });
 
   return socket;
 };
 
 export const getSocket = () => socket;
+
+export const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+};
