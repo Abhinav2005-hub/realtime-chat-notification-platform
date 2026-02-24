@@ -3,29 +3,31 @@ import { useSocket } from"@/context/SocketContext";
 
 export const usePresence = () => {
     const socket = useSocket();
-    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-
-
+    const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  
     useEffect(() => {
-        if (!socket) return;
-
-        socket.on("user_online", (userId: string) => {
-            setOnlineUsers((prev) => new Set(prev).add(userId));
-        });
-
-        socket.on("user_offline", (userId: string) => {
-            setOnlineUsers((prev) => {
-                const updated = new Set(prev);
-                updated.delete(userId);
-                return updated;
-            });
-        });
-
-        return () => {
-            socket.off("user_online");
-            socket.off("user_offline");
-        };
+      if (!socket) return;
+  
+      const handleOnline = (userId: string) => {
+        setOnlineUsers((prev) =>
+          prev.includes(userId) ? prev : [...prev, userId]
+        );
+      };
+  
+      const handleOffline = (userId: string) => {
+        setOnlineUsers((prev) =>
+          prev.filter((id) => id !== userId)
+        );
+      };
+  
+      socket.on("user_online", handleOnline);
+      socket.on("user_offline", handleOffline);
+  
+      return () => {
+        socket.off("user_online", handleOnline);
+        socket.off("user_offline", handleOffline);
+      };
     }, [socket]);
-
+  
     return { onlineUsers };
-};
+  };
