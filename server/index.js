@@ -8,8 +8,9 @@ import messageRoutes from "./routes/messageRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import conversationRoutes from "./routes/conversationRoutes.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
+import { errorHandler } from "./middleware/errorMiddleware.js";
 import adminRoutes from "./routes/adminRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
+import userRoutes from "./routes/userRoutes.js"
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/conversations", conversationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/users", userRoutes);
+app.use(errorHandler);
 
 app.get("/", (req,res) => {
     res.send("Backend is running");
