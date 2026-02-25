@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSocket } from "@/context/SocketContext";
-import axios from "axios";
+import { api } from "@/lib/api";
 import { API_URL, TOKEN_KEY } from "@/lib/constants";
 
 export interface Reaction {
@@ -40,36 +40,27 @@ export const useMessages = (conversationId: string | null) => {
 
   const fetchMessages = async (isInitial = false) => {
     if (!conversationId || loading || (!hasMore && !isInitial)) return;
-
+  
     try {
       setLoading(true);
-
-      const token = localStorage.getItem(TOKEN_KEY);
-      if (!token) return;
-
-      const res = await axios.get(
-        `${API_URL}/messages/${conversationId}`,
-        {
-          params: {
-            cursor: isInitial ? null : cursor,
-            limit: 20,
-          },
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const newMessages: Message[] = res.data.messages;
-
+  
+      const res = await api(`/messages/${conversationId}`, {
+        params: {
+          cursor: isInitial ? null : cursor,
+          limit: 20,
+        },
+      });
+  
+      const newMessages: Message[] = res.messages;
+  
       if (isInitial) {
         setMessages(newMessages);
       } else {
         setMessages((prev) => [...newMessages, ...prev]);
       }
-
-      setCursor(res.data.nextCursor);
-      setHasMore(!!res.data.nextCursor);
+  
+      setCursor(res.nextCursor);
+      setHasMore(!!res.nextCursor);
     } catch (err) {
       console.error("Pagination error:", err);
     } finally {

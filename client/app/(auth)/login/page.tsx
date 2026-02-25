@@ -14,20 +14,25 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    const data = await loginUser(email, password);
+    try {
+      const data = await loginUser(email, password);
 
-    // Save Token
-    localStorage.setItem(TOKEN_KEY, data.token);
-  
-    // CONNECT SOCKET WITH TOKEN
-    connectSocket(data.token);
-  
-    // update auth context
-    login(data.user, data.token);
-  
-    router.push("/chat");
+      // Save Token
+      localStorage.setItem(TOKEN_KEY, data.token);
+
+      // CONNECT SOCKET WITH TOKEN
+      connectSocket(data.token);
+
+      // Update auth context
+      login(data.user, data.token);
+
+      router.push("/chat");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.response?.data?.message || "Login failed");
+    }
   };
-  
+
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="bg-white p-6 rounded shadow w-96">

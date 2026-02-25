@@ -1,42 +1,50 @@
-"use client";
+import axios from "axios";
+import { API_URL, TOKEN_KEY } from "./constants";
 
-import { TOKEN_KEY } from "./constants";
+export const apiClient = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+/* REQUEST INTERCEPTOR */
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY);
 
-  export const api = async (
-    endpoint: string,
-    options: RequestInit = {}
-  ) => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem(TOKEN_KEY)
-        : null;
-  
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...(options.headers || {}),
-      },
-    });
-  
-    let data: any = null;
-  
-    try {
-      data = await res.json();
-    } catch {
-      data = null;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+/* RESPONSE INTERCEPTOR */
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error("API ERROR:", error.response?.data);
+
+    // Auto logout if token expired
+    if (error.response?.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+
+      window.location.href = "/login";
     }
-  
-    if (!res.ok) {
-      console.error("API ERROR RESPONSE:", data);
-  
-      // Preserve real backend message
-      throw new Error(data?.message || `HTTP ${res.status}`);
-    }
-  
-    return data;
-  };
+
+    return Promise.reject(error);
+  }
+);
+
+/* GENERIC API FUNCTION */
+export const api = async (
+  url: string,
+  options?: any
+) => {
+  const res = await apiClient({
+    url,
+    ...options,
+  });
+
+  return res.data;
+};

@@ -3,11 +3,11 @@ import { api } from "./api";
 export const loginUser = (email: string, password: string) =>
   api("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    data: { email, password },
   });
 
 export const registerUser = (name: string, email: string, password: string) =>
   api("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ name, email, password }),
+    data: { name, email, password },
   });
