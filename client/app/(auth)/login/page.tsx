@@ -5,31 +5,29 @@ import { loginUser } from "@/lib/authApi";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { TOKEN_KEY } from "@/lib/constants";
-import { connectSocket } from "@/lib/socket";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const { login } = useAuth();
   const router = useRouter();
 
   const handleLogin = async () => {
     try {
+      setLoading(true);
+
       const data = await loginUser(email, password);
 
-      // Save Token
       localStorage.setItem(TOKEN_KEY, data.token);
-
-      // CONNECT SOCKET WITH TOKEN
-      connectSocket(data.token);
-
-      // Update auth context
       login(data.user, data.token);
 
       router.push("/chat");
     } catch (err: any) {
-      console.error(err);
       alert(err?.response?.data?.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,10 +52,15 @@ export default function LoginPage() {
         />
 
         <button
+          disabled={loading}
           onClick={handleLogin}
-          className="w-full bg-blue-600 text-white py-2"
+          className={`w-full py-2 text-white ${
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
       </div>
     </div>

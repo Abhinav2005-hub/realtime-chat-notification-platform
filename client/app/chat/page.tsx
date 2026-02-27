@@ -14,15 +14,18 @@ import { createOneToOneConversation } from "@/lib/conversationApi";
 import { api } from "@/lib/api";
 
 export default function ChatPage() {
-  const { conversations, refetch } = useConversations();
+  const {
+    conversations,
+    refetch,
+    loading: conversationsLoading,
+  } = useConversations();
+
   const { onlineUsers } = usePresence();
   const { user } = useAuth();
   const currentUserId = user?.id;
 
   const [activeConversationId, setActiveConversationId] =
     useState<string | null>(null);
-
-  /* GROUP STATE */
 
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -43,10 +46,10 @@ export default function ChatPage() {
     try {
       const newGroup = await api("/conversations/group", {
         method: "POST",
-        body: JSON.stringify({
+        data: {
           name: groupName,
           memberIds: selectedUsers,
-        }),
+        },
       });
 
       setShowGroupModal(false);
@@ -66,7 +69,7 @@ export default function ChatPage() {
 
     await api(`/conversations/${activeConversationId}/rename`, {
       method: "PUT",
-      body: JSON.stringify({ newName }),
+      data: { newName },
     });
 
     refetch();
@@ -87,9 +90,8 @@ export default function ChatPage() {
 
   const [replyToMessage, setReplyToMessage] =
     useState<Message | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
   const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
 
   useJoinConversation(activeConversationId);
   useSeen(activeConversationId);
@@ -97,11 +99,7 @@ export default function ChatPage() {
   const {
     messages,
     sendMessage,
-    deleteMessage,
     reactMessage,
-    editMessage,
-    fetchMore,
-    hasMore,
     loading,
   } = useMessages(activeConversationId);
 
@@ -109,16 +107,24 @@ export default function ChatPage() {
 
   useEffect(() => {
     setReplyToMessage(null);
-    setEditingId(null);
-    setEditText("");
     setText("");
   }, [activeConversationId]);
 
-  const handleSend = () => {
-    if (!activeConversationId || !text.trim()) return;
-    sendMessage(text, replyToMessage?.id || null);
-    setText("");
-    setReplyToMessage(null);
+  /* PREVENT DUPLICATE SEND */
+
+  const handleSend = async () => {
+    if (!activeConversationId || !text.trim() || sending) return;
+
+    try {
+      setSending(true);
+
+      sendMessage(text, replyToMessage?.id || null);
+
+      setText("");
+      setReplyToMessage(null);
+    } finally {
+      setSending(false);
+    }
   };
 
   /* UI */
@@ -137,53 +143,80 @@ export default function ChatPage() {
             + Create Group
           </button>
 
-          <UserList onSelect={async (userId) => {
-            const convo = await createOneToOneConversation(userId);
-            setActiveConversationId(convo.id);
-            refetch();
-          }} />
+          <UserList
+            onSelect={async (userId) => {
+              const convo = await createOneToOneConversation(userId);
+              setActiveConversationId(convo.id);
+              refetch();
+            }}
+          />
 
           <div className="overflow-y-auto flex-1">
-            {conversations.map((c) => {
-              const isGroup = c.isGroup;
-              const otherUser = c.members.find(
-                (m) => m.user.id !== currentUserId
-              );
 
-              const isOnline = otherUser
-                ? onlineUsers.includes(otherUser.user.id)
-                : false;
+            {conversationsLoading ? (
+              <div className="p-2 space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-12 bg-gray-200 animate-pulse rounded"
+                  />
+                ))}
+              </div>
+            ) : conversations.length === 0 ? (
+              <p className="text-center text-gray-400 mt-4">
+                No conversations yet
+              </p>
+            ) : (
+              conversations.map((c) => {
+                const isGroup = c.isGroup;
 
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => setActiveConversationId(c.id)}
-                  className={`border-b p-2 cursor-pointer hover:bg-gray-100 ${
-                    activeConversationId === c.id ? "bg-gray-100" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {!isGroup && (
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          isOnline ? "bg-green-500" : "bg-gray-400"
-                        }`}
-                      />
-                    )}
+                const otherUser = c.members.find(
+                  (m) => m.user.id !== currentUserId
+                );
 
-                    <p className="font-medium">
-                      {isGroup ? c.name : otherUser?.user.email}
-                    </p>
+                const isOnline = otherUser
+                  ? onlineUsers.includes(otherUser.user.id)
+                  : false;
 
-                    {isGroup && (
-                      <span className="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded">
-                        Group
-                      </span>
-                    )}
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => setActiveConversationId(c.id)}
+                    className={`border-b p-2 cursor-pointer hover:bg-gray-100 transition ${
+                      activeConversationId === c.id
+                        ? "bg-gray-100"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+
+                      {!isGroup && (
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            isOnline
+                              ? "bg-green-500"
+                              : "bg-gray-400"
+                          }`}
+                        />
+                      )}
+
+                      <p className="font-medium truncate">
+                        {isGroup
+                          ? c.name
+                          : otherUser?.user.email}
+                      </p>
+
+                      {isGroup && (
+                        <span className="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded">
+                          Group
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
+
           </div>
         </div>
 
@@ -191,11 +224,38 @@ export default function ChatPage() {
         <div className="flex-1 p-4 flex flex-col">
 
           {!activeConversationId && (
-            <p className="text-gray-500">Select a conversation</p>
+            <p className="text-gray-500">
+              Select a conversation
+            </p>
           )}
 
           {activeConversation && (
             <div className="border-b p-3 bg-gray-50 mb-2">
+              {activeConversation?.isGroup && (
+                <div className="flex justify-between items-center bg-gray-100 border rounded px-4 py-2 mb-3">
+              
+                  <span className="text-sm text-gray-600">
+                    Group controls
+                  </span>
+              
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleRename}
+                      className="text-blue-600 text-sm font-medium hover:underline"
+                    >
+                      Rename
+                    </button>
+              
+                    <button
+                      onClick={handleLeave}
+                      className="text-red-600 text-sm font-medium hover:underline"
+                    >
+                      Leave
+                    </button>
+                  </div>
+              
+                </div>
+              )}
               <h2 className="font-semibold text-lg">
                 {activeConversation.isGroup
                   ? activeConversation.name
@@ -208,7 +268,8 @@ export default function ChatPage() {
                 <p className="text-sm text-gray-500">
                   {onlineUsers.includes(
                     activeConversation.members.find(
-                      (m) => m.user.id !== currentUserId
+                      (m) =>
+                        m.user.id !== currentUserId
                     )?.user.id || ""
                   )
                     ? "Online"
@@ -218,110 +279,72 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* GROUP CONTROLS */}
-          {activeConversation?.isGroup && (
-            <div className="border p-2 mb-2 bg-gray-50">
-              <button
-                onClick={handleRename}
-                className="mr-4 text-blue-500"
-              >
-                Rename
-              </button>
-              <button
-                onClick={handleLeave}
-                className="text-red-500"
-              >
-                Leave
-              </button>
-            </div>
-          )}
-
           {/* MESSAGE LIST */}
-          <div className="flex-1 border p-3 overflow-y-auto mb-2">
-            {loading && (
-              <p className="text-center text-gray-400">Loading...</p>
+          <div className="flex-1 bg-gray-50 p-4 overflow-y-auto mb-2 rounded">
+          
+            {loading ? (
+              <p className="text-center text-gray-400 mt-4">
+                Loading messages...
+              </p>
+            ) : messages.length === 0 ? (
+              <p className="text-gray-500 text-center mt-4">
+                No messages yet
+              </p>
+            ) : (
+              messages.map((m: Message) => {
+                const isOwn = m.senderId === currentUserId;
+          
+                return (
+                  <div
+                    key={m.id}
+                    className={`flex mb-3 ${
+                      isOwn ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`px-4 py-3 rounded-lg max-w-xs shadow-sm ${
+                        isOwn
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-200 text-black"
+                      }`}
+                    >
+                      {m.replyTo && (
+                        <div className="text-xs opacity-70 mb-2 border-l-2 pl-2">
+                          Replying to: {m.replyTo.content}
+                        </div>
+                      )}
+          
+                      <p>
+                        {m.content}
+                        {m.isEdited && (
+                          <span className="ml-2 text-xs opacity-70">
+                            (edited)
+                          </span>
+                        )}
+                      </p>
+          
+                      <div className="flex gap-2 mt-2 text-sm">
+                        <button onClick={() => reactMessage(m.id, "❤️")}>❤️</button>
+                        <button onClick={() => reactMessage(m.id, "👍")}>👍</button>
+                        <button onClick={() => reactMessage(m.id, "😂")}>😂</button>
+                        <button onClick={() => reactMessage(m.id, "😡")}>😡</button>
+                      </div>
+          
+                      {m.reactions && m.reactions.length > 0 && (
+                        <div className="text-xs mt-1 opacity-80">
+                          {m.reactions.map((r) => (
+                            <span key={r.id} className="mr-1">
+                              {r.emoji}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             )}
-
-            {messages.map((m: Message) => (
-              <div
-                key={m.id}
-                className="mb-3 p-3 border rounded hover:bg-gray-50"
-              >
-                {m.replyTo && (
-                  <div className="text-xs text-gray-500 border-l-4 pl-2 mb-2">
-                    Replying to: {m.replyTo.content}
-                  </div>
-                )}
-
-                {editingId === m.id ? (
-                  <input
-                    className="border p-1 w-full mb-2"
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && editText.trim()) {
-                        editMessage(m.id, editText);
-                        setEditingId(null);
-                        setEditText("");
-                      }
-                    }}
-                  />
-                ) : (
-                  <p>
-                    {m.content}
-                    {m.isEdited && (
-                      <span className="text-xs text-gray-400 ml-2">
-                        (edited)
-                      </span>
-                    )}
-                  </p>
-                )}
-
-                {!m.isDeleted && (
-                  <div className="flex gap-3 mt-2 text-sm">
-                    <button
-                      onClick={() => setReplyToMessage(m)}
-                      className="text-green-600"
-                    >
-                      Reply
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingId(m.id);
-                        setEditText(m.content);
-                      }}
-                      className="text-blue-500"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteMessage(m.id)}
-                      className="text-red-500"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-
-                {/* REACTIONS */}
-                <div className="flex gap-2 mt-2 text-sm">
-                  <button onClick={() => reactMessage(m.id, "❤️")}>❤️</button>
-                  <button onClick={() => reactMessage(m.id, "👍")}>👍</button>
-                  <button onClick={() => reactMessage(m.id, "😂")}>😂</button>
-                  <button onClick={() => reactMessage(m.id, "😡")}>😡</button>
-                </div>
-
-                {m.reactions && m.reactions.length > 0 && (
-                  <div className="text-sm text-gray-500 mt-1">
-                    {m.reactions.map((r) => (
-                      <span key={r.id} className="mr-1">
-                        {r.emoji}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+          
           </div>
 
           {typingUser && (
@@ -330,56 +353,52 @@ export default function ChatPage() {
             </p>
           )}
 
-          {replyToMessage && (
-            <div className="border p-2 mb-2 bg-gray-100 rounded">
-              Replying to: {replyToMessage.content}
-              <button
-                className="ml-2 text-red-500 text-xs"
-                onClick={() => setReplyToMessage(null)}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-
           {activeConversationId && (
             <>
               <input
-                className="border p-2 w-full"
+                disabled={sending}
+                className="border p-2 w-full disabled:bg-gray-100"
                 value={text}
                 onChange={(e) => {
                   setText(e.target.value);
                   sendTyping();
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSend();
+                  if (e.key === "Enter" && !sending) {
+                    handleSend();
+                  }
                 }}
                 placeholder="Type a message"
               />
+
               <button
+                disabled={sending}
                 onClick={handleSend}
-                className="bg-blue-600 text-white px-4 py-2 mt-2"
+                className="bg-blue-600 text-white px-4 py-2 mt-2 disabled:bg-gray-400"
               >
-                Send
+                {sending ? "Sending..." : "Send"}
               </button>
             </>
           )}
+
         </div>
       </div>
 
-      {/* GROUP MODAL */}
       {showGroupModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-          <div className="bg-white p-4 rounded w-96">
-            <h2 className="font-bold mb-3">Create Group</h2>
-
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded w-96 shadow-lg">
+      
+            <h2 className="font-bold text-lg mb-4">
+              Create Group
+            </h2>
+      
             <input
               placeholder="Group Name"
-              className="border p-2 w-full mb-3"
+              className="border p-2 w-full mb-4"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
             />
-
+      
             <UserList
               multiSelect
               selectedUsers={selectedUsers}
@@ -391,18 +410,26 @@ export default function ChatPage() {
                 );
               }}
             />
-
-            <div className="flex justify-end gap-2 mt-3">
-              <button onClick={() => setShowGroupModal(false)}>
+      
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setShowGroupModal(false);
+                  setSelectedUsers([]);
+                }}
+                className="px-3 py-1 border rounded"
+              >
                 Cancel
               </button>
+      
               <button
                 onClick={handleCreateGroup}
-                className="bg-green-600 text-white px-3 py-1 rounded"
+                className="bg-green-600 text-white px-4 py-1 rounded"
               >
                 Create
               </button>
             </div>
+      
           </div>
         </div>
       )}

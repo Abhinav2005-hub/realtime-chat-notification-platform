@@ -1,45 +1,21 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 
 export interface Conversation {
   id: string;
   name?: string;
   isGroup: boolean;
-  members: {
-    user: {
-      id: string;
-      email: string;
-    };
-  }[];
-  messages?: {
-    id: string;
-    content: string;
-  }[];
+  members: any[];
+  messages?: any[];
 }
 
-interface UseConversationsResult {
-  conversations: Conversation[];
-  loading: boolean;
-  refetch: () => Promise<void>;
-}
-
-export const useConversations = (): UseConversationsResult => {
-  const { user, isAuthReady } = useAuth();
+export const useConversations = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const fetchConversations = useCallback(async () => {
-    if (!isAuthReady) return;
-
-    if (!user) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
 
@@ -52,7 +28,7 @@ export const useConversations = (): UseConversationsResult => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthReady, user]);
+  }, []);
 
   useEffect(() => {
     fetchConversations();

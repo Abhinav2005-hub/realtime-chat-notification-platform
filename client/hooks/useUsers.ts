@@ -14,7 +14,7 @@ export interface User {
 export const useUsers = () => {
   const { user, token, isAuthReady } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthReady || !user || !token) return;
