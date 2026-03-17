@@ -24,8 +24,25 @@ export const createOneToOneConversation = async (req, res) => {
       where: {
         isGroup: false,
         AND: [
-          { members: { some: { userId } } },
-          { members: { some: { userId: targetUserId } } },
+          {
+            members: {
+              some: { userId: userId }, 
+            },
+          },
+          {
+            members: {
+              some: { userId: targetUserId },
+            },
+          },
+          {
+            members: {
+              every: {
+                userId: {
+                  in: [userId, targetUserId],
+                },
+              },
+            },
+          },
         ],
       },
       include: {
