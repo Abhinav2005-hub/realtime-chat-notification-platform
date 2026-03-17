@@ -15,25 +15,29 @@ export default function ConversationList({
 }: Props) {
   const { user } = useAuth();
 
+  if (!user) return null;
+
   return (
     <div className="flex-1 overflow-y-auto border-t">
       <p className="p-2 font-semibold bg-gray-100">Chats</p>
 
       {conversations.length === 0 && (
-        <p className="p-3 text-gray-500 text-sm">No conversations yet</p>
+        <p className="p-3 text-gray-500 text-sm">
+          No conversations yet
+        </p>
       )}
 
       {conversations.map((c) => {
-        // find other user in 1-to-1 chat
         const otherMember = c.members?.find(
-          (m: any) => m.userId !== user?.id
+          (m: any) => m.user?.id !== user.id
         );
 
         const chatName = c.isGroup
           ? c.name || "Group Chat"
           : otherMember?.user?.email || "Unknown User";
 
-        const lastMessage = c.messages?.[0]?.content || "No messages yet";
+        const lastMessage =
+          c.messages?.[0]?.content || "No messages yet";
 
         const isActive = activeConversationId === c.id;
 
@@ -45,8 +49,12 @@ export default function ConversationList({
               isActive ? "bg-blue-100" : ""
             }`}
           >
-            <p className="font-semibold text-sm">{chatName}</p>
-            <p className="text-xs text-gray-500 truncate">{lastMessage}</p>
+            <p className="font-semibold text-sm">
+              {chatName}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {lastMessage}
+            </p>
           </div>
         );
       })}

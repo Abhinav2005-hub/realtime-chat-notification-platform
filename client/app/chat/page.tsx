@@ -34,6 +34,10 @@ export default function ChatPage() {
   const activeConversation =
     conversations?.find((c) => c.id === activeConversationId) || null;
 
+    const otherUser = activeConversation?.members.find(
+      (m) => m.user.id !== currentUserId
+    );
+
   /* GROUP ACTIONS */
 
   const handleCreateGroup = async () => {
@@ -127,6 +131,10 @@ export default function ChatPage() {
     }
   };
 
+  if (!currentUserId) {
+    return <p className="p-4">Loading user...</p>
+  }
+
   /* UI */
 
   return (
@@ -145,6 +153,19 @@ export default function ChatPage() {
 
           <UserList
             onSelect={async (userId) => {
+              if (!currentUserId) return;
+          
+              const existing = conversations.find((c) =>
+                !c.isGroup &&
+                c.members.some((m) => m.user.id === userId) &&
+                c.members.some((m) => m.user.id === currentUserId)
+              );
+          
+              if (existing) {
+                setActiveConversationId(existing.id);
+                return;
+              }
+          
               const convo = await createOneToOneConversation(userId);
               setActiveConversationId(convo.id);
               refetch();
@@ -170,9 +191,9 @@ export default function ChatPage() {
               conversations.map((c) => {
                 const isGroup = c.isGroup;
 
-                const otherUser = c.members.find(
-                  (m) => m.user.id !== currentUserId
-                );
+                const otherUser = currentUserId
+                ? c.members.find((m) => m.user.id !== currentUserId)
+                : null;
 
                 const isOnline = otherUser
                   ? onlineUsers.includes(otherUser.user.id)
@@ -228,16 +249,15 @@ export default function ChatPage() {
               Select a conversation
             </p>
           )}
-
           {activeConversation && (
             <div className="border-b p-3 bg-gray-50 mb-2">
+          
               {activeConversation?.isGroup && (
                 <div className="flex justify-between items-center bg-gray-100 border rounded px-4 py-2 mb-3">
-              
                   <span className="text-sm text-gray-600">
                     Group controls
                   </span>
-              
+          
                   <div className="flex gap-3">
                     <button
                       onClick={handleRename}
@@ -245,7 +265,7 @@ export default function ChatPage() {
                     >
                       Rename
                     </button>
-              
+          
                     <button
                       onClick={handleLeave}
                       className="text-red-600 text-sm font-medium hover:underline"
@@ -253,29 +273,23 @@ export default function ChatPage() {
                       Leave
                     </button>
                   </div>
-              
                 </div>
               )}
+          
               <h2 className="font-semibold text-lg">
                 {activeConversation.isGroup
                   ? activeConversation.name
-                  : activeConversation.members.find(
-                      (m) => m.user.id !== currentUserId
-                    )?.user.email}
+                  : otherUser?.user.email || "Unknown User"}
               </h2>
-
+          
               {!activeConversation.isGroup && (
                 <p className="text-sm text-gray-500">
-                  {onlineUsers.includes(
-                    activeConversation.members.find(
-                      (m) =>
-                        m.user.id !== currentUserId
-                    )?.user.id || ""
-                  )
+                  {onlineUsers.includes(otherUser?.user.id || "")
                     ? "Online"
                     : "Offline"}
                 </p>
               )}
+          
             </div>
           )}
 
