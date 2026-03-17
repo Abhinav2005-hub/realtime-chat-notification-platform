@@ -25,60 +25,87 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const restoreAuth = async () => {
-      const storedToken = localStorage.getItem(TOKEN_KEY);
-
-      if (!storedToken) {
-        setLoading(false);
-        setIsAuthReady(true);
-        return;
-      }
-
       try {
+        const storedToken = localStorage.getItem(TOKEN_KEY);
+  
+        if (!storedToken) {
+          setIsAuthReady(true);
+          return;
+        }
+  
         const data = await api("/auth/me", {
           headers: {
             Authorization: `Bearer ${storedToken}`,
           },
         });
-
-        setUser(data.user);
-        setToken(storedToken);
-      } catch {
+  
+        if (data?.user) {
+          setUser(data.user);
+          setToken(storedToken);
+        } else {
+          setUser(null);
+        }
+  
+      } catch (error) {
+        console.error("Auth restore failed", error);
         localStorage.removeItem(TOKEN_KEY);
         setUser(null);
-        setToken(null);
       } finally {
         setLoading(false);
-        setIsAuthReady(true);
+        setIsAuthReady(true); 
       }
     };
-
+  
     restoreAuth();
   }, []);
 
   const login = (user: User, token: string) => {
+
     localStorage.setItem(TOKEN_KEY, token);
+
     setUser(user);
     setToken(token);
     setIsAuthReady(true);
+
   };
 
   const logout = () => {
+
     localStorage.removeItem(TOKEN_KEY);
+
     disconnectSocket();
+
     setUser(null);
+    setToken(null);
+    setIsAuthReady(true);
+
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, isAuthReady, login, logout }}
+      value={{
+        user,
+        token,
+        loading,
+        isAuthReady,
+        login,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>
   );
+
 };
 
 export const useAuth = () => {
+
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+
+  if (!ctx) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
+
   return ctx;
+
 };
