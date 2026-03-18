@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { loginUser } from "@/lib/authApi";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { TOKEN_KEY } from "@/lib/constants";
 
 export default function LoginPage() {
@@ -11,8 +11,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+
+  const searchParams = useSearchParams();
   const router = useRouter();
+
+  const redirect = searchParams.get("redirect") || "/chat";
+
+  useEffect(() => {
+    if (user) {
+      router.replace("/chat");
+    }
+  }, [user, router]);
 
   const handleLogin = async () => {
     try {
@@ -23,7 +33,7 @@ export default function LoginPage() {
       localStorage.setItem(TOKEN_KEY, data.token);
       login(data.user, data.token);
 
-      router.push("/chat");
+      router.replace(redirect);
     } catch (err: any) {
       alert(err?.response?.data?.message || "Login failed");
     } finally {

@@ -14,7 +14,9 @@ export default function RequireAuth({
 
   useEffect(() => {
     if (isAuthReady && !user) {
-      router.replace("/login");
+      const currentPath = window.location.pathname;
+  
+      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
     }
   }, [isAuthReady, user, router]);
 
