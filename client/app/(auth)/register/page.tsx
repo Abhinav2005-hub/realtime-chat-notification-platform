@@ -45,7 +45,8 @@ export default function RegisterPage() {
       // Update auth context
       login(data.user, data.token);
 
-      router.push("/chat");
+      router.replace("/chat");
+
     } catch (err: any) {
       setError(err.message || "Registration failed");
     } finally {

@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Socket } from "socket.io-client";
 import { connectSocket, disconnectSocket } from "@/lib/socket";
-import { TOKEN_KEY } from "@/lib/constants";
+import { useAuth } from "@/context/AuthContext";
 
 const SocketContext = createContext<Socket | null>(null);
 
@@ -13,18 +13,25 @@ const SocketContext = createContext<Socket | null>(null);
     children: React.ReactNode;
   }) => {
     const [socket, setSocket] = useState<Socket | null>(null);
+    const { token, isAuthReady } = useAuth();
 
     useEffect(() => {
-      const token = localStorage.getItem(TOKEN_KEY);
-      if(!token) return;
+      if (!isAuthReady) return;
+
+      if (!token) {
+        disconnectSocket();
+        setSocket(null);
+        return;
+      }
 
       const newSocket = connectSocket(token);
       setSocket(newSocket);
 
       return () => {
         disconnectSocket();
+        setSocket(null);
       };
-    }, []);
+    }, [token, isAuthReady]);
     return (
       <SocketContext.Provider value={socket}>
         {children}

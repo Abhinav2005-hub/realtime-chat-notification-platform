@@ -41,7 +41,10 @@ export default function ChatPage() {
   /* GROUP ACTIONS */
 
   const handleCreateGroup = async () => {
-    if (!groupName.trim()) return;
+    if (!groupName.trim()) {
+      alert("Group name is required");
+      return;
+    }
     if (selectedUsers.length < 2) {
       alert("Select at least 2 users");
       return;
@@ -104,10 +107,17 @@ export default function ChatPage() {
     messages,
     sendMessage,
     reactMessage,
+    deleteMessage,
     loading,
   } = useMessages(activeConversationId);
 
   const { typingUser, sendTyping } = useTyping(activeConversationId);
+
+  const typingUserLabel =
+    typingUser && activeConversation
+      ? activeConversation.members.find((m) => m.user.id === typingUser)?.user
+          ?.email || "Someone"
+      : null;
 
   useEffect(() => {
     setReplyToMessage(null);
@@ -289,6 +299,12 @@ export default function ChatPage() {
                     : "Offline"}
                 </p>
               )}
+
+              {typingUser && typingUser !== currentUserId && (
+                <p className="text-sm text-gray-500 mt-1">
+                  {typingUserLabel} is typing...
+                </p>
+              )}
           
             </div>
           )}
@@ -342,6 +358,18 @@ export default function ChatPage() {
                         <button onClick={() => reactMessage(m.id, "👍")}>👍</button>
                         <button onClick={() => reactMessage(m.id, "😂")}>😂</button>
                         <button onClick={() => reactMessage(m.id, "😡")}>😡</button>
+                        {isOwn && !m.isDeleted && (
+                          <button
+                            className="ml-2 text-xs underline"
+                            onClick={() => {
+                              if (confirm("Delete this message?")) {
+                                deleteMessage(m.id);
+                              }
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
           
                       {m.reactions && m.reactions.length > 0 && (
@@ -353,6 +381,16 @@ export default function ChatPage() {
                           ))}
                         </div>
                       )}
+
+                      {isOwn && (
+                        <div className="text-right mt-1 text-xs opacity-80">
+                          {m.status === "seen"
+                            ? "✓✓"
+                            : m.status === "delivered"
+                              ? "✓"
+                              : ""}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -360,12 +398,6 @@ export default function ChatPage() {
             )}
           
           </div>
-
-          {typingUser && (
-            <p className="text-sm text-gray-400 mb-1">
-              Someone is typing...
-            </p>
-          )}
 
           {activeConversationId && (
             <>

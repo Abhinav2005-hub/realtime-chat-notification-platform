@@ -10,15 +10,16 @@ export const useTyping = (conversationId: string | null) => {
   useEffect(() => {
     if (!socket || !conversationId) return;
 
-    const handleTyping = ({
-      userId,
-      conversationId: incomingId,
-    }: {
-      userId: string;
-      conversationId: string;
-    }) => {
-      if (incomingId !== conversationId) return;
-
+    const handleTyping = (
+      payload:
+        | string
+        | {
+            userId: string;
+            conversationId?: string;
+          }
+    ) => {
+      // Server may emit either `socket.userId` (string) or `{ userId }` (object).
+      const userId = typeof payload === "string" ? payload : payload.userId;
       setTypingUser(userId);
 
       /* clear previous timer */
